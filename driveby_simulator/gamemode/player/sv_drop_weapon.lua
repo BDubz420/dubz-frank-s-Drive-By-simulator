@@ -5,7 +5,6 @@ DBS.Drop = DBS.Drop or {}
 -- Weapon Drop Blacklist
 -- =========================
 DBS.Drop.Blacklist = {
-    ["weapon_dbs_lockpick"] = true,
     ["weapon_dbs_hands"]    = true,
     ["weapon_fists"]        = true
 }

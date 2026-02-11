@@ -49,7 +49,9 @@ function DBS.Player.GetCred(ply)
 end
 
 function DBS.Player.SetCred(ply, amount)
-    ply:SetNWInt("DBS_Cred", math.max(0, amount))
+    local v = math.max(0, amount)
+    ply:SetNWInt("DBS_Cred", v)
+    if SERVER then ply:SetPData("dbs_cred", tostring(v)) end
 end
 
 function DBS.Player.AddCred(ply, amount)

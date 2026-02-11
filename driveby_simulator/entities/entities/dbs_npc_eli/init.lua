@@ -3,6 +3,11 @@ AddCSLuaFile("shared.lua")
 include("shared.lua")
 
 function ENT:KeyValue(key, value)
+    if key == "dealer_id" then
+        self:SetDealerID(math.max(1, tonumber(value) or 1))
+        return
+    end
+
     if key == "team" then
         local t = string.lower(value or "")
         local teamId = DBS.Const.TeamNames and DBS.Const.TeamNames[t]
@@ -17,6 +22,7 @@ end
 
 function ENT:Initialize()
     local teamId = self:GetDealerTeam()
+    if self:GetDealerID() <= 0 then self:SetDealerID(1) end
 
     local model = DBS.Config.DealerModels
         and DBS.Config.DealerModels[teamId]
@@ -47,6 +53,6 @@ function ENT:AcceptInput(inputName, activator)
     end
 
     if DBS and DBS.Eli and DBS.Eli.Open then
-        DBS.Eli.Open(activator)
+        DBS.Eli.Open(activator, self)
     end
 end

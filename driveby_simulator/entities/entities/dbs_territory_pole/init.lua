@@ -94,6 +94,9 @@ function ENT:Initialize()
 
     self:SetCapturingTeam(0)
     self:SetCaptureEndsAt(0)
+            self:SetNWFloat("DBS_CaptureStart", 0)
+
+    self.NoMoneyBlock = {}
 
     -- =========================
     -- Territory Flag (Child)
@@ -139,23 +142,50 @@ function ENT:Think()
     local owner = self:GetOwnerTeam()
     local state = self:GetState()
 
-    local captureTime = (DBS.Config.Territory and DBS.Config.Territory.CaptureTime) or 60
+    local capMin = (DBS.Config.Territory and DBS.Config.Territory.CaptureTimeMin) or 60
+    local capMax = (DBS.Config.Territory and DBS.Config.Territory.CaptureTimeMax) or capMin
+
+    local inRange = self:GetPlayersInCaptureRange()
+    local inRangeMap = {}
+    for _, ply in ipairs(inRange) do
+        inRangeMap[ply:SteamID64()] = true
+    end
+
+    for sid in pairs(self.NoMoneyBlock or {}) do
+        if not inRangeMap[sid] then
+            self.NoMoneyBlock[sid] = nil
+        end
+    end
 
     -- =========================
     -- Auto-start capture (NEUTRAL only)
     -- =========================
     if owner == 0 and self:GetCapturingTeam() == 0 then
         local capturer
-        for _, ply in ipairs(self:GetPlayersInCaptureRange()) do
-            if ply:Team() ~= 0 and not DBS.Util.IsPolice(ply) then
+        for _, ply in ipairs(inRange) do
+            local sid = ply:SteamID64()
+            if ply:Team() ~= 0 and not DBS.Util.IsPolice(ply) and not (self.NoMoneyBlock and self.NoMoneyBlock[sid]) then
                 capturer = ply
                 break
             end
         end
 
         if IsValid(capturer) then
+            local cost = DBS.Config.Territory.CaptureCost or 5000
+            if not capturer:CanAfford(cost) then
+                NotifyOne(capturer, ("You need $%s to start claiming this territory."):format(string.Comma(cost)))
+                self.NoMoneyBlock = self.NoMoneyBlock or {}
+                self.NoMoneyBlock[capturer:SteamID64()] = true
+                capturer:SetNWFloat("DBS_TerritoryNoMoneyUntil", CurTime() + 4)
+                capturer:SetNWInt("DBS_TerritoryNoMoneyCost", cost)
+                self:NextThink(now + 1)
+                return true
+            end
+
+            local captureTime = math.Rand(capMin, math.max(capMin, capMax))
             self:SetCapturingTeam(capturer:Team())
             self:SetCaptureEndsAt(now + captureTime)
+            self:SetNWFloat("DBS_CaptureStart", now)
 
             -- Universal world announcement ONLY for unclaimed territories
             net.Start(DBS.Net.Notify)
@@ -181,6 +211,7 @@ function ENT:Think()
         if not stillHere then
             self:SetCapturingTeam(0)
             self:SetCaptureEndsAt(0)
+            self:SetNWFloat("DBS_CaptureStart", 0)
         end
     end
 
@@ -239,6 +270,7 @@ function ENT:Think()
             -- Nobody there at the final moment -> cancel
             self:SetCapturingTeam(0)
             self:SetCaptureEndsAt(0)
+            self:SetNWFloat("DBS_CaptureStart", 0)
             self:NextThink(now + 1)
             return true
         end
@@ -250,6 +282,7 @@ function ENT:Think()
         if DBS.Config.TerritoryPole.CaptureCancelOnEnemy and HasEnemyInRadius(self, capTeam) then
             self:SetCapturingTeam(0)
             self:SetCaptureEndsAt(0)
+            self:SetNWFloat("DBS_CaptureStart", 0)
             self:NextThink(now + 1)
             return true
         end
@@ -257,9 +290,14 @@ function ENT:Think()
         -- Cost (only for gangs)
         local cost = DBS.Config.Territory.CaptureCost or 5000
         if not claimant:CanAfford(cost) then
-            NotifyOne(claimant, ("Not enough money to claim ($%s)."):format(cost))
+            NotifyOne(claimant, ("Not enough money to claim ($%s). Leave and return to retry."):format(cost))
+            self.NoMoneyBlock = self.NoMoneyBlock or {}
+            self.NoMoneyBlock[claimant:SteamID64()] = true
+            claimant:SetNWFloat("DBS_TerritoryNoMoneyUntil", CurTime() + 4)
+            claimant:SetNWInt("DBS_TerritoryNoMoneyCost", cost)
             self:SetCapturingTeam(0)
             self:SetCaptureEndsAt(0)
+            self:SetNWFloat("DBS_CaptureStart", 0)
             self:NextThink(now + 1)
             return true
         end
@@ -269,6 +307,7 @@ function ENT:Think()
         -- Apply ownership
         self:SetCapturingTeam(0)
         self:SetCaptureEndsAt(0)
+        self:SetNWFloat("DBS_CaptureStart", 0)
         self:SetOwnerTeam(capTeam)
         self:SetState(DBS.Const.TerritoryState.OWNED)
         self:SetDecayEndsAt(now + (DBS.Config.Territory.DecayTime or 300))
@@ -279,6 +318,10 @@ function ENT:Think()
         if enemyOwned then
             claimant:AddCred(1)
         end
+
+        local supplyReward = math.max(1, tonumber((DBS.Config.Territory and DBS.Config.Territory.SuppliesPerCapture) or 8) or 8)
+        claimant:SetNWInt("DBS_Supplies", claimant:GetNWInt("DBS_Supplies", 0) + supplyReward)
+        NotifyOne(claimant, "+" .. supplyReward .. " supplies for claiming territory.")
 
         -- =========================
         -- Notifications requested:
@@ -299,8 +342,83 @@ function ENT:Think()
             NotifyTeam(capTeam, "Your gang has claimed a neutral territory!")
             NotifyOne(claimant, "Territory claimed.")
         end
+
+        local bonusChance = 0.35
+        if math.Rand(0, 1) <= bonusChance and DBS.CarMarket and DBS.CarMarket.TrySpawnBonusCarFarFromPlayers then
+            if DBS.CarMarket.TrySpawnBonusCarFarFromPlayers() then
+                NotifyTeam(capTeam, "Bonus: a car has spawned somewhere in the city.")
+            end
+        end
     end
 
     self:NextThink(now + 1)
     return true
+end
+
+
+
+if SERVER then
+    local function GetPlayersInTerritoryRing(pole, teamID)
+        local list = {}
+        local radius = (DBS.Config and DBS.Config.TerritoryPole and DBS.Config.TerritoryPole.Radius) or 300
+        local radiusSqr = radius * radius
+
+        for _, ply in ipairs(player.GetAll()) do
+            if not IsValid(ply) or not ply:Alive() then continue end
+            if ply:Team() ~= teamID then continue end
+            if ply:GetPos():DistToSqr(pole:GetPos()) > radiusSqr then continue end
+            list[#list + 1] = ply
+        end
+
+        return list
+    end
+
+    timer.Create("DBS.TerritoryPassiveIncome", 45, 0, function()
+        local poles = ents.FindByClass("dbs_territory_pole")
+        if #poles == 0 then return end
+
+        local teamPool = {}
+        local holderBonus = {}
+
+        local basePerPole = 80
+        local ringBonus = 60
+
+        for _, pole in ipairs(poles) do
+            local owner = pole:GetOwnerTeam()
+            if not owner or owner == 0 then continue end
+
+            teamPool[owner] = (teamPool[owner] or 0) + basePerPole
+
+            local inRing = GetPlayersInTerritoryRing(pole, owner)
+            if #inRing > 0 then
+                local holder = table.Random(inRing)
+                if IsValid(holder) then
+                    holderBonus[holder] = (holderBonus[holder] or 0) + ringBonus
+                end
+            end
+        end
+
+        for teamID, pool in pairs(teamPool) do
+            local members = {}
+            for _, ply in ipairs(player.GetAll()) do
+                if IsValid(ply) and ply:Alive() and ply:Team() == teamID then
+                    members[#members + 1] = ply
+                end
+            end
+
+            if #members > 0 and pool > 0 then
+                local split = math.max(1, math.floor(pool / #members))
+                for _, ply in ipairs(members) do
+                    ply:AddMoney(split)
+                    local msg = "Territory share: $" .. string.Comma(split)
+                    if holderBonus[ply] then
+                        ply:AddMoney(holderBonus[ply])
+                        msg = msg .. " + ring bonus $" .. string.Comma(holderBonus[ply])
+                    end
+                    DBS.Util.Notify(ply, msg .. ".")
+                    DBS.Util.Notify(ply, "Tip: stand in your territory ring at payout for bonus cash.")
+                end
+            end
+        end
+    end)
 end

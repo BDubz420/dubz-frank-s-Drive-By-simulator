@@ -8,4 +8,5 @@ ENT.AdminOnly = true
 
 function ENT:SetupDataTables()
     self:NetworkVar("Int", 0, "DealerTeam")
+    self:NetworkVar("Int", 1, "DealerID")
 end

@@ -6,14 +6,25 @@ local PLAYER = FindMetaTable("Player")
 -- Weapons that NEVER count toward inventory
 DBS.Inventory.IgnoreWeapons = {
     ["weapon_dbs_hands"] = true,
-    ["weapon_fists"] = true -- safety fallback
+    ["weapon_fists"] = true, -- safety fallback
+    ["gmod_tool"] = true,
+    ["weapon_physgun"] = true,
+    ["weapon_physcannon"] = true,
+    ["gmod_camera"] = true,
+    ["weapon_camera"] = true,
 }
 
 -- Weapons that are NOT considered guns
 DBS.Inventory.NonGunWeapons = {
     ["weapon_dbs_hands"] = true,
     ["weapon_fists"] = true,
-    ["weapon_dbs_lockpick"] = true
+    ["weapon_dbs_lockpick"] = true,
+    ["weapon_dbs_pickpocket"] = true,
+    ["gmod_tool"] = true,
+    ["weapon_physgun"] = true,
+    ["weapon_physcannon"] = true,
+    ["gmod_camera"] = true,
+    ["weapon_camera"] = true,
 }
 
 -- ----------------------------
