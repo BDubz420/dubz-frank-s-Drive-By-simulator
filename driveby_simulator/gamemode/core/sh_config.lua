@@ -19,7 +19,8 @@ DBS.Config.Core = {
 DBS.Config.Cred = {
     KillsPerCred = 5,
 
-    PoliceUnclaimCred = 1
+    PoliceUnclaimCred = 1,
+    CredForLargeDeliveryUnits = 18
 }
 
 -- =========================
@@ -43,8 +44,8 @@ DBS.Config.Cars = {
 DBS.Config.Territory = {
     CaptureCost = 5000,
 
-    CaptureTimeMin = 60,
-    CaptureTimeMax = 180,
+    CaptureTimeMin = 25,
+    CaptureTimeMax = 55,
 
     DecayTime = 300, -- 5 minutes
 
@@ -68,7 +69,91 @@ DBS.Config.Package = {
 -- PROPERTY / MACHINES
 -- =========================
 DBS.Config.Property = {
-    BuyCost = 5000
+    BuyCost = 5000,
+
+    Door = {
+        BuyCost = 1200,
+        SellRefundPercent = 0.5,
+        RequireGangTeam = true,
+        InteractionDistance = 140,
+        InteractionCooldown = 0.35,
+        OverclaimMultiplier = 2.4
+    }
+}
+
+
+DBS.Config.CarsDealer = {
+    BuybackScale = 0.6,
+    AmbientMax = 10,
+    SpawnPositions = {
+        { Pos = Vector(2500, 1600, 128), Ang = Angle(0, 90, 0) },
+        { Pos = Vector(2200, 1300, 128), Ang = Angle(0, 180, 0) },
+        { Pos = Vector(4800, -1800, 80), Ang = Angle(0, 30, 0) },
+        { Pos = Vector(9800, -3900, 136), Ang = Angle(0, -90, 0) }
+    },
+
+    Stock = {
+        { Name = "Bati 801", Class = "gtav_bati801", Model = "models/tdmcars/gtav/bati801.mdl", Price = 6200, Buyout = 9800, VehicleClass = "gtav_bati801" },
+        { Name = "Blazer", Class = "gtav_blazer", Model = "models/tdmcars/gtav/blazer.mdl", Price = 4800, Buyout = 7600, VehicleClass = "gtav_blazer" },
+        { Name = "Dukes", Class = "gtav_dukes", Model = "models/tdmcars/gtav/dukes.mdl", Price = 7200, Buyout = 11200, VehicleClass = "gtav_dukes" },
+        { Name = "Gauntlet Classic", Class = "gtav_gauntlet_classic", Model = "models/tdmcars/gtav/gauntlet_classic.mdl", Price = 7800, Buyout = 12100, VehicleClass = "gtav_gauntlet_classic" },
+        { Name = "Infernus", Class = "gtav_infernus", Model = "models/tdmcars/gtav/infernus.mdl", Price = 12000, Buyout = 18000, VehicleClass = "gtav_infernus" },
+        { Name = "JB700", Class = "gtav_jb700", Model = "models/tdmcars/gtav/jb700.mdl", Price = 9200, Buyout = 14000, VehicleClass = "gtav_jb700" },
+        { Name = "Speedo", Class = "gtav_speedo", Model = "models/tdmcars/gtav/speedo.mdl", Price = 5600, Buyout = 8800, VehicleClass = "gtav_speedo" },
+        { Name = "Wolfsbane", Class = "gtav_wolfsbane", Model = "models/tdmcars/gtav/wolfsbane.mdl", Price = 5100, Buyout = 8000, VehicleClass = "gtav_wolfsbane" },
+
+        { Name = "Police Cruiser", Class = "gtav_police_cruiser", Model = "models/tdmcars/gtav/police_cruiser.mdl", Price = 9800, Buyout = 15200, VehicleClass = "gtav_police_cruiser", PoliceOnly = true },
+        { Name = "Insurgent", Class = "gtav_insurgent", Model = "models/tdmcars/gtav/insurgent.mdl", Price = 14500, Buyout = 22000, VehicleClass = "gtav_insurgent", PoliceOnly = true }
+    }
+}
+
+DBS.Config.Printer = {
+    Price = 3000,
+    PrintInterval = 8,
+    PrintAmount = 35,
+    MaxStored = 3000,
+    MaxPerPlayer = 5
+}
+
+DBS.Config.CokePrinter = {
+    Price = 9500,
+    MaxPerPlayer = 2,
+    SuppliesPerBatch = 1,
+    ProcessInterval = 18,
+    MaxSupplies = 20
+}
+
+DBS.Config.CokeDryingTable = {
+    Price = 3000,
+    MaxPerPlayer = 2,
+    DryTime = 20
+}
+
+DBS.Config.CokeBrickPacker = {
+    Price = 4500,
+    MaxPerPlayer = 2
+}
+
+DBS.Config.LockpickTrainingCost = 250
+
+DBS.Config.Drugs = {
+    PayoutPerUnit = 90,
+    MeetDuration = 180,
+    DropboxModel = "models/props_vents/vent_medium_grill002.mdl"
+}
+
+DBS.Config.Economy = {
+    StipendInterval = 90,
+    GangStipend = 125,
+    PoliceStipend = 175,
+
+    GangKillReward = 150,
+    PoliceKillReward = 100,
+
+    SoftWalletCap = 6000,
+    SoftCapPayoutScale = 0.35,
+
+    TransactionCooldown = 0.25
 }
 
 DBS.Config.GunTable = {
@@ -100,6 +185,9 @@ DBS.Config.Time = {
 -- Fallback to vectors.
 -- =========================
 DBS.Config.Spawns = {
+    JailPositions = {
+        { Pos = Vector(1105, 1865, 136), Ang = Angle(0, 180, 0) }
+    },
     Intro = {
         EntName = "dbs_spawn_intro", -- optional map entity name
         Pos = Vector(2387, 1943, 128),
@@ -133,27 +221,31 @@ DBS.Config.Spawns = {
 }
 
 DBS.Config.PlayerModels = {
-    [0] = { -- Unassigned
-        "models/player/group01/male_01.mdl",
-        "models/player/group01/male_02.mdl",
-        "models/player/group01/male_03.mdl"
-    },
-
-    [DBS.Const.Teams.RED] = {
+    [0] = { -- Unassigned (rebels)
         "models/player/group03/male_01.mdl",
         "models/player/group03/male_02.mdl",
         "models/player/group03/male_03.mdl",
+        "models/player/group03/female_01.mdl"
+    },
+
+    [DBS.Const.Teams.RED] = {
+        "models/player/bloodz/playermodels/bloodzpm.mdl",
+        "models/player/bloodz/playermodels/bloodzpm_02.mdl",
+        "models/player/group03/male_01.mdl",
     },
 
     [DBS.Const.Teams.BLUE] = {
-        "models/player/group03/male_04.mdl",
-        "models/player/group03/male_05.mdl",
+        "models/player/cripz/playermodels/cripzpm.mdl",
+        "models/player/cripz/playermodels/cripzpm_02.mdl",
         "models/player/group03/male_06.mdl",
     },
 
     [DBS.Const.Teams.POLICE] = {
         "models/player/police.mdl",
-        "models/player/police_fem.mdl"
+        "models/player/police_fem.mdl",
+        "models/player/combine_soldier.mdl",
+        "models/player/combine_soldier_prisonguard.mdl",
+        "models/player/combine_super_soldier.mdl"
     }
 }
 -- =========================
@@ -173,10 +265,33 @@ DBS.Config.Vehicles = {
     UseTeamColors = true
 }
 
+
+
+DBS.Config.Police = {
+    ArrestRange = 130,
+    ArrestCooldown = 1.5,
+    ArrestWeaponClass = "weapon_stunstick",
+    JudgeSentenceDelay = 8
+}
+
+DBS.Config.NPC = {
+    Models = {
+        TeamSelector = "models/Humans/Group03/male_07.mdl",
+        PickpocketTrainer = "models/Humans/Group03/male_04.mdl",
+        Judge = "models/Humans/Group03/male_09.mdl",
+        CarDealer = "models/Humans/Group03/male_06.mdl",
+        DrugDealer = "models/Humans/Group03/male_08.mdl"
+    }
+}
+
+DBS.Config.Vulnerability = {
+    KnockoutDuration = 15,
+    KnockoutChanceOnFatal = 0.5
+}
+
 DBS.Config.WeaponDropBlacklist = {
     ["weapon_fists"] = true,
     ["weapon_dbs_hands"] = true,
-    ["weapon_dbs_lockpick"] = true,
 }
 
 -- =========================
@@ -301,7 +416,7 @@ DBS.Config.TerritoryPole = {
 }
 
 DBS.Config.DealerModels = {
-    [DBS.Const.Teams.RED] = "models/player/bmyst.mdl",
-    [DBS.Const.Teams.BLUE] = "models/CaptainBleysFire/yunomiles/Yuno_Miles.mdl",
-    [DBS.Const.Teams.POLICE] = "models/player/css_koonkillaz/t_leetedge.mdl"
+    [DBS.Const.Teams.RED] = "models/Humans/Group03/male_07.mdl",
+    [DBS.Const.Teams.BLUE] = "models/Humans/Group03/male_07.mdl",
+    [DBS.Const.Teams.POLICE] = "models/Humans/Group03/male_07.mdl"
 }
