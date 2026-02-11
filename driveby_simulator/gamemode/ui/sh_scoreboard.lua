@@ -1,67 +1,57 @@
--- gamemode/player/sh_scoreboard.lua
-
 if not CLIENT then return end
 
 local SCOREBOARD
 
--- =========================
--- Fonts
--- =========================
-surface.CreateFont("DBS_SB_Title", {
-    font = "Roboto",
-    size = 28,
-    weight = 800
-})
-
-surface.CreateFont("DBS_SB_Header", {
-    font = "Roboto",
-    size = 18,
-    weight = 700
-})
-
-surface.CreateFont("DBS_SB_Player", {
-    font = "Roboto",
-    size = 16,
-    weight = 500
-})
-
--- =========================
--- Helpers
--- =========================
-local function TeamName(teamID)
-    if teamID == DBS.Const.Teams.RED then return "Red Team" end
-    if teamID == DBS.Const.Teams.BLUE then return "Blue Team" end
-    if teamID == DBS.Const.Teams.POLICE then return "Police" end
-    return "Unassigned"
-end
+surface.CreateFont("DBS_SB_Title", { font = "Roboto", size = 30, weight = 900 })
+surface.CreateFont("DBS_SB_Header", { font = "Roboto", size = 18, weight = 700 })
+surface.CreateFont("DBS_SB_Player", { font = "Roboto", size = 16, weight = 500 })
 
 local function TeamCount(teamID)
     local count = 0
     for _, ply in ipairs(player.GetAll()) do
+        local pTeam = ply:Team()
         if teamID == 0 then
-            if ply:Team() == 0 or ply:Team() == TEAM_UNASSIGNED then
-                count = count + 1
-            end
-        elseif ply:Team() == teamID then
+            if pTeam == 0 or pTeam == TEAM_UNASSIGNED then count = count + 1 end
+        elseif pTeam == teamID then
             count = count + 1
         end
     end
     return count
 end
 
-local function TeamColor(teamID)
-    if teamID == DBS.Const.Teams.RED then return Color(200, 60, 60) end
-    if teamID == DBS.Const.Teams.BLUE then return Color(60, 120, 200) end
-    if teamID == DBS.Const.Teams.POLICE then return Color(60, 160, 200) end
-    return Color(150, 150, 150)
+local function TeamName(teamID)
+    if teamID == 0 then return "Unassigned" end
+    return team.GetName(teamID) or "Unknown"
 end
 
--- =========================
--- Player Row
--- =========================
+local function TeamColor(teamID)
+    if teamID == 0 then return Color(190, 190, 190) end
+    return team.GetColor(teamID) or Color(160, 160, 160)
+end
+
+local function SortedPlayers(teamID)
+    local list = {}
+
+    for _, ply in ipairs(player.GetAll()) do
+        local pTeam = ply:Team()
+        if (teamID == 0 and (pTeam == 0 or pTeam == TEAM_UNASSIGNED)) or pTeam == teamID then
+            list[#list + 1] = ply
+        end
+    end
+
+    table.sort(list, function(a, b)
+        if a:Frags() == b:Frags() then
+            return a:Nick():lower() < b:Nick():lower()
+        end
+        return a:Frags() > b:Frags()
+    end)
+
+    return list
+end
+
 local function CreatePlayerRow(parent, ply, index)
     local row = parent:Add("DPanel")
-    row:SetTall(26)
+    row:SetTall(28)
     row:Dock(TOP)
     row:DockMargin(4, 2, 4, 2)
 
@@ -69,58 +59,20 @@ local function CreatePlayerRow(parent, ply, index)
     local alt = index % 2 == 0
 
     row.Paint = function(self, w, h)
-        local bg
-
-        if isLocal then
-            bg = Color(60, 120, 180, 220)
-        elseif alt then
-            bg = Color(25, 25, 25, 200)
-        else
-            bg = Color(20, 20, 20, 200)
-        end
+        local bg = isLocal and Color(55, 95, 145, 230) or (alt and Color(25, 25, 25, 210) or Color(18, 18, 18, 210))
 
         draw.RoundedBox(4, 0, 0, w, h, bg)
+        draw.SimpleText(ply:Nick(), "DBS_SB_Player", 8, h * 0.5, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 
-        draw.SimpleText(
-            ply:Nick(),
-            "DBS_SB_Player",
-            8,
-            h / 2,
-            color_white,
-            TEXT_ALIGN_LEFT,
-            TEXT_ALIGN_CENTER
-        )
-
-        local cred = ply:GetNWInt("DBS_Cred", 0)
-        local money = ply:GetNWInt("DBS_Money", 0)
-
-        draw.SimpleText(
-            "CRED: " .. cred,
-            "DBS_SB_Player",
-            w - 140,
-            h / 2,
-            Color(120, 160, 255),
-            TEXT_ALIGN_LEFT,
-            TEXT_ALIGN_CENTER
-        )
-
-        draw.SimpleText(
-            "$" .. string.Comma(money),
-            "DBS_SB_Player",
-            w - 10,
-            h / 2,
-            Color(120, 220, 120),
-            TEXT_ALIGN_RIGHT,
-            TEXT_ALIGN_CENTER
-        )
+        draw.SimpleText("C " .. ply:GetNWInt("DBS_Cred", 0), "DBS_SB_Player", w - 198, h * 0.5, Color(130, 165, 255), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        draw.SimpleText("$" .. string.Comma(ply:GetMoney()), "DBS_SB_Player", w - 150, h * 0.5, Color(125, 225, 125), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        draw.SimpleText("K " .. ply:Frags(), "DBS_SB_Player", w - 78, h * 0.5, Color(235, 180, 110), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        draw.SimpleText(tostring(ply:Ping()), "DBS_SB_Player", w - 10, h * 0.5, Color(180, 180, 180), TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
     end
 
     return row
 end
 
--- =========================
--- Column
--- =========================
 local function CreateTeamColumn(parent, teamID)
     local panel = vgui.Create("DPanel", parent)
     panel:Dock(LEFT)
@@ -128,36 +80,23 @@ local function CreateTeamColumn(parent, teamID)
 
     panel.Paint = function(self, w, h)
         draw.RoundedBox(6, 0, 0, w, h, Color(10, 10, 10, 220))
-
-        local name = TeamName(teamID)
-        local count = TeamCount(teamID)
-
-        draw.SimpleText(
-            name .. " (" .. count .. ")",
-            "DBS_SB_Header",
-            w / 2,
-            10,
-            TeamColor(teamID),
-            TEXT_ALIGN_CENTER
-        )
+        draw.SimpleText(TeamName(teamID) .. " (" .. TeamCount(teamID) .. ")", "DBS_SB_Header", w * 0.5, 12, TeamColor(teamID), TEXT_ALIGN_CENTER)
+        draw.SimpleText("CRED / MONEY / KILLS / PING", "DBS_SB_Player", w * 0.5, 32, Color(180, 180, 180), TEXT_ALIGN_CENTER)
     end
 
     local scroll = panel:Add("DScrollPanel")
     scroll:Dock(FILL)
-    scroll:DockMargin(6, 36, 6, 6)
+    scroll:DockMargin(6, 50, 6, 6)
 
-    panel.Scroll = scroll
     panel.TeamID = teamID
+    panel.Scroll = scroll
 
     return panel
 end
 
--- =========================
--- Build Scoreboard
--- =========================
 local function BuildScoreboard()
     SCOREBOARD = vgui.Create("DFrame")
-    SCOREBOARD:SetSize(ScrW() * 0.85, ScrH() * 0.85)
+    SCOREBOARD:SetSize(ScrW() * 0.92, ScrH() * 0.86)
     SCOREBOARD:Center()
     SCOREBOARD:SetTitle("")
     SCOREBOARD:ShowCloseButton(false)
@@ -165,81 +104,51 @@ local function BuildScoreboard()
     SCOREBOARD:MakePopup()
 
     SCOREBOARD.Paint = function(self, w, h)
-        draw.RoundedBox(8, 0, 0, w, h, Color(15, 15, 15, 240))
-        draw.SimpleText("Dubz & Frank's DriveBy Simulator", "DBS_SB_Title", w / 2, 12, color_white, TEXT_ALIGN_CENTER)
+        draw.RoundedBox(10, 0, 0, w, h, Color(15, 15, 15, 245))
+        draw.SimpleText("Dubz & Frank's DriveBy Simulator", "DBS_SB_Title", w * 0.5, 18, color_white, TEXT_ALIGN_CENTER)
     end
 
     local body = vgui.Create("DPanel", SCOREBOARD)
     body:Dock(FILL)
-    body:DockMargin(16, 56, 16, 40)
+    body:DockMargin(16, 64, 16, 40)
     body.Paint = nil
 
-    local columns = {
-        CreateTeamColumn(body, DBS.Const.Teams.RED),
-        CreateTeamColumn(body, DBS.Const.Teams.BLUE),
-        CreateTeamColumn(body, DBS.Const.Teams.POLICE),
-        CreateTeamColumn(body, 0)
-    }
+    local teamsToRender = { DBS.Const.Teams.RED, DBS.Const.Teams.BLUE, DBS.Const.Teams.POLICE, 0 }
 
-    -- IMPORTANT: set widths after Derma lays out body
-    body.PerformLayout = function(self, w, h)
-        local gap = 12 -- left+right margin per column (6 + 6)
+    local columns = {}
+    for _, teamID in ipairs(teamsToRender) do
+        columns[#columns + 1] = CreateTeamColumn(body, teamID)
+    end
+
+    body.PerformLayout = function(self, w)
+        local gap = 12
         local totalGaps = gap * #columns
-
         local colW = math.floor((w - totalGaps) / #columns)
-        local remainder = (w - totalGaps) - (colW * #columns)
-
-        for i, col in ipairs(columns) do
-            local extra = (i == #columns) and remainder or 0
-            col:SetWide(colW + extra)
-        end
-    end
-
-    -- Populate players
-    for _, col in ipairs(columns) do
-        col.Scroll:Clear()
-    end
-
-    local rowIndex = {
-        [DBS.Const.Teams.RED] = 0,
-        [DBS.Const.Teams.BLUE] = 0,
-        [DBS.Const.Teams.POLICE] = 0,
-        [0] = 0
-    }
-
-    for _, ply in ipairs(player.GetAll()) do
-        if not IsValid(ply) then continue end
-
-        local teamID = ply:Team()
-        if teamID == TEAM_UNASSIGNED then teamID = 0 end
 
         for _, col in ipairs(columns) do
-            if col.TeamID == teamID then
-                rowIndex[teamID] = rowIndex[teamID] + 1
-                CreatePlayerRow(col.Scroll, ply, rowIndex[teamID])
-                break
-            end
+            col:SetWide(colW)
         end
     end
 
-    -- Footer
+    for _, col in ipairs(columns) do
+        col.Scroll:Clear()
+        for i, ply in ipairs(SortedPlayers(col.TeamID)) do
+            CreatePlayerRow(col.Scroll, ply, i)
+        end
+    end
+
     local footer = vgui.Create("DLabel", SCOREBOARD)
     footer:Dock(BOTTOM)
-    footer:SetTall(24)
+    footer:SetTall(26)
     footer:SetContentAlignment(5)
-    footer:SetText("Online players: " .. #player.GetAll() .. "/" .. game.MaxPlayers())
+    footer:SetText("Players online: " .. #player.GetAll() .. "/" .. game.MaxPlayers())
 end
 
--- =========================
--- Hooks
--- =========================
 function GM:ScoreboardShow()
     if IsValid(SCOREBOARD) then SCOREBOARD:Remove() end
     BuildScoreboard()
 end
 
 function GM:ScoreboardHide()
-    if IsValid(SCOREBOARD) then
-        SCOREBOARD:Remove()
-    end
+    if IsValid(SCOREBOARD) then SCOREBOARD:Remove() end
 end

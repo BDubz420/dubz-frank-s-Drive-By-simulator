@@ -16,12 +16,16 @@ local function GetPoleColor(pole)
         return Color(200, 200, 200, 70) -- neutral
     end
 
-    if owner == TEAM_RED then
+    if owner == DBS.Const.Teams.RED then
         return Color(255, 80, 80, 90)
     end
 
-    if owner == TEAM_BLUE then
+    if owner == DBS.Const.Teams.BLUE then
         return Color(80, 80, 255, 90)
+    end
+
+    if owner == DBS.Const.Teams.POLICE then
+        return Color(80, 180, 255, 90)
     end
 
     return Color(200, 200, 200, 70)
