@@ -48,6 +48,10 @@ net.Receive("DBS_Eli_Open", function()
     local isPolice = net.ReadBool()
     local cred = net.ReadUInt(3)
     local money = net.ReadInt(32)
+    local printerOwned = net.ReadUInt(8)
+    local printerMax = math.max(1, net.ReadUInt(8))
+    local cokeOwned = net.ReadUInt(8)
+    local cokeMax = math.max(1, net.ReadUInt(8))
 
     local shop = isPolice and DBS.Config.Shop.Police or DBS.Config.Shop.Gang
 
@@ -201,6 +205,10 @@ net.Receive("DBS_Eli_Open", function()
 
     local pCfg = DBS.Config.Printer or {}
     local pPrice = pCfg.Price or 3000
+    local cCfg = DBS.Config.CokePrinter or {}
+    local cPrice = cCfg.Price or 9000
+    local atPrinterCap = printerOwned >= printerMax
+    local atCokeCap = cokeOwned >= cokeMax
 
     local prInfo = utilPanel:Add("DLabel")
     prInfo:Dock(TOP)
@@ -208,18 +216,42 @@ net.Receive("DBS_Eli_Open", function()
     prInfo:SetTextColor(Color(220,220,220))
     prInfo:SetWrap(true)
     prInfo:SetAutoStretchVertical(true)
-    prInfo:SetText("Money Printer\nPrice: $" .. string.Comma(pPrice) .. "\nLow passive income. Collect by using the printer.")
+    prInfo:SetText("Money Printer " .. printerOwned .. "/" .. printerMax .. "\nPrice: $" .. string.Comma(pPrice) .. "\nLow passive income. Collect by using the printer.")
 
     local prBtn = utilPanel:Add("DButton")
     prBtn:Dock(TOP)
     prBtn:DockMargin(0, 8, 0, 0)
     prBtn:SetTall(36)
     prBtn:SetText("")
-    prBtn.DBS_Label = "Buy Money Printer"
-    StyleButton(prBtn, money >= pPrice)
-    prBtn:SetEnabled(money >= pPrice)
+    prBtn.DBS_Label = "Buy Money Printer (" .. printerOwned .. "/" .. printerMax .. ")"
+    StyleButton(prBtn, (money >= pPrice) and not atPrinterCap)
+    prBtn:SetEnabled((money >= pPrice) and not atPrinterCap)
     prBtn.DoClick = function()
+        if atPrinterCap then return end
         net.Start("DBS_Eli_BuyPrinter")
+        net.SendToServer()
+    end
+
+    local cokeInfo = utilPanel:Add("DLabel")
+    cokeInfo:Dock(TOP)
+    cokeInfo:DockMargin(0, 14, 0, 0)
+    cokeInfo:SetFont("DBS_UI_Body")
+    cokeInfo:SetTextColor(Color(220,220,220))
+    cokeInfo:SetWrap(true)
+    cokeInfo:SetAutoStretchVertical(true)
+    cokeInfo:SetText("Coke Printer " .. cokeOwned .. "/" .. cokeMax .. "\nPrice: $" .. string.Comma(cPrice) .. "\nOccasionally produces coke bricks.")
+
+    local cokeBtn = utilPanel:Add("DButton")
+    cokeBtn:Dock(TOP)
+    cokeBtn:DockMargin(0, 8, 0, 0)
+    cokeBtn:SetTall(36)
+    cokeBtn:SetText("")
+    cokeBtn.DBS_Label = "Buy Coke Printer (" .. cokeOwned .. "/" .. cokeMax .. ")"
+    StyleButton(cokeBtn, (money >= cPrice) and not atCokeCap)
+    cokeBtn:SetEnabled((money >= cPrice) and not atCokeCap)
+    cokeBtn.DoClick = function()
+        if atCokeCap then return end
+        net.Start("DBS_Eli_BuyCokePrinter")
         net.SendToServer()
     end
 

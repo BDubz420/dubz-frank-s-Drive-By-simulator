@@ -4,6 +4,10 @@ local CAR_FRAME
 local STOCK = {}
 local AUCTIONS = {}
 
+local SELECTED_INDEX = 1
+local PREVIEW_COLOR = Color(255, 255, 255)
+local PREVIEW_BGS = {}
+
 local function Send(action, fn)
     net.Start("DBS_Car_Action")
         net.WriteString(action)
@@ -11,66 +15,188 @@ local function Send(action, fn)
     net.SendToServer()
 end
 
+local function PaintFrame(frame)
+    frame.Paint = function(_, w, h)
+        draw.RoundedBox(12, 0, 0, w, h, Color(14, 14, 18, 242))
+        draw.RoundedBox(12, 0, 0, w, 56, Color(20, 24, 30, 250))
+        draw.SimpleText("Car Dealer / Auction House", "DBS_UI_Title", 14, 18, color_white, TEXT_ALIGN_LEFT)
+        draw.SimpleText("Preview, customize, then spawn.", "DBS_UI_Body", 14, 42, Color(180, 180, 180), TEXT_ALIGN_LEFT)
+    end
+end
+
+local function StyleButton(btn)
+    btn:SetText("")
+    btn.Paint = function(self, w, h)
+        local enabled = self:IsEnabled()
+        local col = enabled and Color(45, 100, 155, 255) or Color(75, 75, 75, 220)
+        if enabled and self:IsHovered() then col = Color(65, 120, 175, 255) end
+        draw.RoundedBox(8, 0, 0, w, h, col)
+        draw.SimpleText(self.DBS_Label or "", "DBS_UI_Body", 10, h * 0.5, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+    end
+end
+
+local function IsStockVisible(stock)
+    if not stock then return false end
+    if stock.PoliceOnly and not DBS.Util.IsPolice(LocalPlayer()) then
+        return false
+    end
+    return true
+end
+
+local function BuildBodygroupSliders(parent, modelPanel, stock)
+    PREVIEW_BGS = {}
+    if not IsValid(modelPanel.Entity) then return end
+
+    local ent = modelPanel.Entity
+    local bgCount = ent:GetNumBodyGroups() or 0
+    for i = 0, bgCount - 1 do
+        local bgInfo = ent:GetBodygroup(i)
+        local num = bgInfo and bgInfo.num or 1
+        if num <= 1 then continue end
+
+        local slider = parent:Add("DNumSlider")
+        slider:Dock(TOP)
+        slider:DockMargin(4, 0, 4, 2)
+        slider:SetText("Bodygroup " .. i)
+        slider:SetMin(0)
+        slider:SetMax(num - 1)
+        slider:SetDecimals(0)
+        slider:SetValue(0)
+        slider.OnValueChanged = function(_, val)
+            local idx = math.Clamp(math.floor(val + 0.5), 0, num - 1)
+            PREVIEW_BGS[i] = idx
+            if IsValid(modelPanel.Entity) then
+                modelPanel.Entity:SetBodygroup(i, idx)
+            end
+        end
+    end
+end
+
+local function ApplyPreview(modelPanel, stock, bgPanel)
+    if not stock then return end
+
+    modelPanel:SetModel(stock.Model or "models/buggy.mdl")
+    if IsValid(modelPanel.Entity) then
+        modelPanel.Entity:SetColor(PREVIEW_COLOR)
+        modelPanel.Entity:SetSkin(0)
+        for id, val in pairs(PREVIEW_BGS) do
+            modelPanel.Entity:SetBodygroup(id, val)
+        end
+    end
+
+    if IsValid(bgPanel) then
+        bgPanel:Clear()
+        BuildBodygroupSliders(bgPanel, modelPanel, stock)
+    end
+end
+
 local function BuildUI()
     if IsValid(CAR_FRAME) then CAR_FRAME:Remove() end
 
     CAR_FRAME = vgui.Create("DFrame")
-    CAR_FRAME:SetSize(620, 520)
+    CAR_FRAME:SetSize(860, 560)
     CAR_FRAME:Center()
-    CAR_FRAME:SetTitle("Car Dealer / Auction House")
+    CAR_FRAME:SetTitle("")
     CAR_FRAME:MakePopup()
+    PaintFrame(CAR_FRAME)
 
     local sheet = vgui.Create("DPropertySheet", CAR_FRAME)
     sheet:Dock(FILL)
+    sheet:DockMargin(10, 62, 10, 10)
 
-    local shop = vgui.Create("DScrollPanel", sheet)
-    sheet:AddSheet("Dealer", shop, "icon16/car.png")
+    local dealer = vgui.Create("DPanel", sheet)
+    dealer:Dock(FILL)
+    dealer.Paint = nil
+    sheet:AddSheet("Dealer", dealer, "icon16/car.png")
 
-    for i, c in ipairs(STOCK) do
-        local btn = shop:Add("DButton")
-        btn:Dock(TOP)
-        btn:DockMargin(4, 4, 4, 0)
-        btn:SetTall(32)
-        btn:SetText((c.Name or "Car") .. " - $" .. string.Comma(c.Price or 0))
-        btn.DoClick = function()
-            Send("buy_npc", function() net.WriteUInt(i, 8) end)
+    local left = dealer:Add("DScrollPanel")
+    left:Dock(LEFT)
+    left:SetWide(330)
+    left:DockMargin(0, 0, 8, 0)
+
+    local right = dealer:Add("DPanel")
+    right:Dock(FILL)
+    right.Paint = nil
+
+    local modelPanel = right:Add("DModelPanel")
+    modelPanel:Dock(TOP)
+    modelPanel:SetTall(250)
+    modelPanel:SetCamPos(Vector(240, 0, 80))
+    modelPanel:SetLookAt(Vector(0, 0, 40))
+    modelPanel.LayoutEntity = function(self, ent)
+        ent:SetAngles(Angle(0, CurTime() * 12 % 360, 0))
+    end
+
+    local mixer = right:Add("DColorMixer")
+    mixer:Dock(TOP)
+    mixer:SetTall(120)
+    mixer:SetPalette(true)
+    mixer:SetAlphaBar(false)
+    mixer:SetWangs(true)
+    mixer:SetColor(PREVIEW_COLOR)
+    mixer.ValueChanged = function(_, col)
+        PREVIEW_COLOR = Color(col.r, col.g, col.b)
+        if IsValid(modelPanel.Entity) then
+            modelPanel.Entity:SetColor(PREVIEW_COLOR)
         end
     end
 
+    local bgPanel = right:Add("DScrollPanel")
+    bgPanel:Dock(FILL)
+    bgPanel:DockMargin(0, 6, 0, 6)
 
-    local custom = shop:Add("DButton")
-    custom:Dock(TOP)
-    custom:DockMargin(4, 6, 4, 0)
-    custom:SetTall(30)
-    custom:SetText("Customize my car color (random)")
-    custom.DoClick = function()
-        Send("customize", function()
-            net.WriteUInt(math.random(20,255), 8)
-            net.WriteUInt(math.random(20,255), 8)
-            net.WriteUInt(math.random(20,255), 8)
+    local buyBtn = right:Add("DButton")
+    buyBtn:Dock(BOTTOM)
+    buyBtn:SetTall(36)
+    buyBtn.DBS_Label = "Buy Previewed Car"
+    StyleButton(buyBtn)
+
+    local function SelectStock(index)
+        SELECTED_INDEX = index
+        PREVIEW_BGS = {}
+        ApplyPreview(modelPanel, STOCK[index], bgPanel)
+        local stock = STOCK[index]
+        if stock then
+            buyBtn.DBS_Label = "Buy " .. (stock.Name or "Car") .. " ($" .. string.Comma(stock.Price or 0) .. ")"
+        end
+    end
+
+    for i, c in ipairs(STOCK) do
+        if not IsStockVisible(c) then continue end
+
+        local btn = left:Add("DButton")
+        btn:Dock(TOP)
+        btn:DockMargin(4, 4, 4, 0)
+        btn:SetTall(34)
+        btn.DBS_Label = (c.Name or "Car") .. " - $" .. string.Comma(c.Price or 0)
+        StyleButton(btn)
+        btn.DoClick = function() SelectStock(i) end
+    end
+
+    buyBtn.DoClick = function()
+        local stock = STOCK[SELECTED_INDEX]
+        if not stock then return end
+
+        Send("buy_npc", function()
+            net.WriteUInt(SELECTED_INDEX, 8)
+            net.WriteUInt(PREVIEW_COLOR.r, 8)
+            net.WriteUInt(PREVIEW_COLOR.g, 8)
+            net.WriteUInt(PREVIEW_COLOR.b, 8)
+
+            local count = 0
+            for _ in pairs(PREVIEW_BGS) do count = count + 1 end
+            net.WriteUInt(math.min(16, count), 5)
+            local written = 0
+            for id, val in pairs(PREVIEW_BGS) do
+                if written >= 16 then break end
+                net.WriteUInt(id, 5)
+                net.WriteUInt(val, 6)
+                written = written + 1
+            end
         end)
     end
 
-    local sell = shop:Add("DButton")
-    sell:Dock(TOP)
-    sell:DockMargin(4, 10, 4, 0)
-    sell:SetTall(34)
-    sell:SetText("Sell my car back to NPC")
-    sell.DoClick = function() Send("sell_npc") end
-
-    local setSpawn = shop:Add("DButton")
-    setSpawn:Dock(TOP)
-    setSpawn:DockMargin(4, 10, 4, 0)
-    setSpawn:SetTall(28)
-    setSpawn:SetText("Admin: Set Car Spawn to my position")
-    setSpawn.DoClick = function() Send("set_car_spawn") end
-
-    local addSpawn = shop:Add("DButton")
-    addSpawn:Dock(TOP)
-    addSpawn:DockMargin(4, 4, 4, 0)
-    addSpawn:SetTall(28)
-    addSpawn:SetText("Admin: Add Car Spawn at my position")
-    addSpawn.DoClick = function() Send("add_car_spawn") end
+    SelectStock(SELECTED_INDEX)
 
     local auction = vgui.Create("DScrollPanel", sheet)
     sheet:AddSheet("Auction", auction, "icon16/money_dollar.png")
@@ -89,7 +215,8 @@ local function BuildUI()
     listBtn:Dock(TOP)
     listBtn:DockMargin(4, 0, 4, 10)
     listBtn:SetTall(32)
-    listBtn:SetText("List my current car")
+    listBtn.DBS_Label = "List my current car"
+    StyleButton(listBtn)
     listBtn.DoClick = function()
         local bo = tonumber(buyoutEntry:GetValue()) or 0
         local sb = tonumber(bidEntry:GetValue()) or 0
@@ -104,17 +231,18 @@ local function BuildUI()
         pnl:Dock(TOP)
         pnl:DockMargin(4, 0, 4, 8)
         pnl:SetTall(84)
-        pnl.Paint = function(self,w,h)
-            draw.RoundedBox(6,0,0,w,h,Color(20,20,20,220))
-            draw.SimpleText(a.Name .. " by " .. a.SellerName, "DermaDefaultBold", 8, 10, color_white)
-            draw.SimpleText("Bid: $"..string.Comma(a.Bid).."  Buyout: $"..string.Comma(a.Buyout), "DermaDefault", 8, 30, Color(180,180,180))
-            if a.BidderName then draw.SimpleText("Top bidder: "..a.BidderName, "DermaDefault", 8, 46, Color(160,220,160)) end
+        pnl.Paint = function(_, w, h)
+            draw.RoundedBox(6, 0, 0, w, h, Color(20, 20, 20, 220))
+            draw.SimpleText((a.Name or "Car") .. " by " .. (a.SellerName or "Unknown"), "DermaDefaultBold", 8, 10, color_white)
+            draw.SimpleText("Bid: $" .. string.Comma(a.Bid or 0) .. "  Buyout: $" .. string.Comma(a.Buyout or 0), "DermaDefault", 8, 30, Color(180, 180, 180))
+            if a.BidderName then draw.SimpleText("Top bidder: " .. a.BidderName, "DermaDefault", 8, 46, Color(160, 220, 160)) end
         end
 
         local bid = vgui.Create("DButton", pnl)
         bid:SetPos(8, 60)
         bid:SetSize(110, 20)
-        bid:SetText("Bid +$500")
+        bid.DBS_Label = "Bid +$500"
+        StyleButton(bid)
         bid.DoClick = function()
             Send("bid", function()
                 net.WriteUInt(id, 16)
@@ -125,7 +253,8 @@ local function BuildUI()
         local buy = vgui.Create("DButton", pnl)
         buy:SetPos(126, 60)
         buy:SetSize(110, 20)
-        buy:SetText("Buyout")
+        buy.DBS_Label = "Buyout"
+        StyleButton(buy)
         buy.DoClick = function()
             Send("buyout", function() net.WriteUInt(id, 16) end)
         end

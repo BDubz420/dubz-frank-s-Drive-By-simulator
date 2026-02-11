@@ -331,8 +331,40 @@ function ENT:Think()
             NotifyTeam(capTeam, "Your gang has claimed a neutral territory!")
             NotifyOne(claimant, "Territory claimed.")
         end
+
+        local bonusChance = 0.35
+        if math.Rand(0, 1) <= bonusChance and DBS.CarMarket and DBS.CarMarket.TrySpawnBonusCarFarFromPlayers then
+            if DBS.CarMarket.TrySpawnBonusCarFarFromPlayers() then
+                NotifyTeam(capTeam, "Bonus: a car has spawned somewhere in the city.")
+            end
+        end
     end
 
     self:NextThink(now + 1)
     return true
+end
+
+
+if SERVER then
+    timer.Create("DBS.TerritoryPassiveIncome", 45, 0, function()
+        local poles = ents.FindByClass("dbs_territory_pole")
+        if #poles == 0 then return end
+
+        local counts = {}
+        for _, pole in ipairs(poles) do
+            local owner = pole:GetOwnerTeam()
+            if owner and owner ~= 0 then
+                counts[owner] = (counts[owner] or 0) + 1
+            end
+        end
+
+        for _, ply in ipairs(player.GetAll()) do
+            local owned = counts[ply:Team()] or 0
+            if owned > 0 then
+                local payout = owned * 60
+                ply:AddMoney(payout)
+                DBS.Util.Notify(ply, "Territory income: $" .. string.Comma(payout) .. " (" .. owned .. " owned)")
+            end
+        end
+    end)
 end

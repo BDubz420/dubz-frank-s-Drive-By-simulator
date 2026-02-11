@@ -107,12 +107,6 @@ function SWEP:Think()
 
     if not self:IsDragging() then return end
 
-    if ply:KeyPressed(IN_INVNEXT) then
-        self.DragDistance = math.Clamp((self.DragDistance or DRAG_DISTANCE_DEFAULT) + DRAG_DISTANCE_STEP, DRAG_DISTANCE_MIN, DRAG_DISTANCE_MAX)
-    elseif ply:KeyPressed(IN_INVPREV) then
-        self.DragDistance = math.Clamp((self.DragDistance or DRAG_DISTANCE_DEFAULT) - DRAG_DISTANCE_STEP, DRAG_DISTANCE_MIN, DRAG_DISTANCE_MAX)
-    end
-
     local dragDistance = self.DragDistance or DRAG_DISTANCE_DEFAULT
     local targetPos = ply:GetShootPos() + ply:GetAimVector() * dragDistance
     local delta = targetPos - self.DragEnt:GetPos()

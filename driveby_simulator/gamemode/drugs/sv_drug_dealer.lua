@@ -35,13 +35,17 @@ net.Receive("DBS_Drugs_Action", function(_, ply)
         ply:SetNWEntity("DBS_DrugMeetBox", box)
         ply:SetNWFloat("DBS_DrugMeetUntil", CurTime() + ((DBS.Config.Drugs and DBS.Config.Drugs.MeetDuration) or 180))
 
-        DBS.Util.Notify(ply, "Meet set. Deliver to the dropbox before timer ends.")
+        DBS.Util.Notify(ply, "Meet set. Deliver to the marked dropbox before timer ends.")
         return
     end
 
     if action == "adm_givedrugs" and IsValid(ply) and ply:IsAdmin() then
-        ply:SetNWInt("DBS_Drugs", ply:GetNWInt("DBS_Drugs", 0) + 10)
-        DBS.Util.Notify(ply, "+10 drugs (admin test).")
+        local brick = ents.Create("dbs_coke_brick")
+        if IsValid(brick) then
+            brick:SetPos(ply:GetPos() + ply:GetForward() * 30 + Vector(0,0,20))
+            brick:Spawn()
+            DBS.Util.Notify(ply, "Spawned test coke brick.")
+        end
     end
 end)
 
@@ -67,5 +71,13 @@ function DBS.DrugDealer.TryDeliver(ply, box)
     ply:SetNWEntity("DBS_DrugMeetBox", NULL)
 
     ply:AddMoney(payout)
-    DBS.Util.Notify(ply, "Delivery complete: $" .. string.Comma(payout) .. ".")
+
+    local credCfg = DBS.Config.Cred or {}
+    local credUnits = credCfg.CredForLargeDeliveryUnits or 18
+    if moved >= credUnits then
+        DBS.Player.AddCred(ply, 1)
+        DBS.Util.Notify(ply, "Delivery complete: $" .. string.Comma(payout) .. " and +1 CRED.")
+    else
+        DBS.Util.Notify(ply, "Delivery complete: $" .. string.Comma(payout) .. ".")
+    end
 end

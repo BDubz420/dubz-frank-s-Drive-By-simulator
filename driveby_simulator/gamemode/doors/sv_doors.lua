@@ -54,12 +54,18 @@ local function LoadDoorData()
     DBS.Doors.PersistentOwners = istable(parsed) and parsed or {}
 end
 
-function DBS.Doors.SetOwner(door, ownerTeam, shouldPersist)
+function DBS.Doors.IsProtected(door)
+    return IsValid(door) and door:GetNWBool("DBS_DoorHQProtected", false)
+end
+
+function DBS.Doors.SetOwner(door, ownerTeam, shouldPersist, protected)
     if not IsValid(door) then return end
 
     ownerTeam = ownerTeam or 0
+    protected = protected == true
 
     door:SetNWInt("DBS_DoorOwner", ownerTeam)
+    door:SetNWBool("DBS_DoorHQProtected", protected)
 
     if ownerTeam == 0 then
         door:SetColor(Color(255, 255, 255))
@@ -73,16 +79,28 @@ function DBS.Doors.SetOwner(door, ownerTeam, shouldPersist)
     if shouldPersist then
         local id = DBS.Doors.GetDoorID(door)
         if id then
-            DBS.Doors.PersistentOwners[id] = ownerTeam
+            DBS.Doors.PersistentOwners[id] = {
+                owner = ownerTeam,
+                protected = protected
+            }
             SaveDoorData()
         end
     end
 end
 
-function DBS.Doors.GetPriceInfo()
+function DBS.Doors.GetPriceInfo(door, buyerTeam)
     local cfg = GetCfg()
-    local buyPrice = cfg.BuyCost or 0
+    local base = cfg.BuyCost or 0
     local refund = math.floor((cfg.BuyCost or 0) * (cfg.SellRefundPercent or 0))
+
+    local owner = IsValid(door) and DBS.Doors.GetOwnerTeam(door) or 0
+    local overMul = cfg.OverclaimMultiplier or 2.4
+    local buyPrice = base
+
+    if owner ~= 0 and owner ~= buyerTeam and not DBS.Doors.IsProtected(door) then
+        buyPrice = math.floor(base * overMul)
+    end
+
     return buyPrice, refund
 end
 
@@ -96,25 +114,38 @@ local function TryBuyDoor(ply, door)
     end
 
     local ownerTeam = DBS.Doors.GetOwnerTeam(door)
-    if ownerTeam ~= 0 and ownerTeam ~= plyTeam then
-        DBS.Util.Notify(ply, "Enemy control. You can't buy this right now.")
-        return
-    end
-
     if ownerTeam == plyTeam then
         DBS.Util.Notify(ply, "Your side already owns this property.")
         return
     end
 
-    local buyPrice = DBS.Doors.GetPriceInfo()
+    if ownerTeam ~= 0 and ownerTeam ~= plyTeam and DBS.Doors.IsProtected(door) then
+        DBS.Util.Notify(ply, "This HQ door is protected and cannot be claimed.")
+        return
+    end
+
+    local enemyOverclaim = ownerTeam ~= 0 and ownerTeam ~= plyTeam and not DBS.Doors.IsProtected(door)
+
+    local buyPrice = DBS.Doors.GetPriceInfo(door, plyTeam)
     if not ply:CanAfford(buyPrice) then
         DBS.Util.Notify(ply, "You cannot afford this property.")
         return
     end
 
     ply:AddMoney(-buyPrice)
-    DBS.Doors.SetOwner(door, plyTeam, false)
-    DBS.Util.Notify(ply, "Property bought for $" .. string.Comma(buyPrice) .. ".")
+    DBS.Doors.SetOwner(door, plyTeam, false, false)
+
+    if not ply:HasWeapon("weapon_dbs_keys") then
+        ply:Give("weapon_dbs_keys")
+    end
+    ply:SetNWBool("DBS_HasKeys", true)
+
+    if enemyOverclaim then
+        DBS.Player.AddCred(ply, 1)
+        DBS.Util.Notify(ply, "Enemy property overclaimed for $" .. string.Comma(buyPrice) .. " (+1 CRED).")
+    else
+        DBS.Util.Notify(ply, "Property bought for $" .. string.Comma(buyPrice) .. ". Keys added.")
+    end
 end
 
 local function TrySellDoor(ply, door)
@@ -130,8 +161,8 @@ local function TrySellDoor(ply, door)
         return
     end
 
-    local _, refund = DBS.Doors.GetPriceInfo()
-    DBS.Doors.SetOwner(door, 0, false)
+    local _, refund = DBS.Doors.GetPriceInfo(door, ply:Team())
+    DBS.Doors.SetOwner(door, 0, false, false)
     ply:AddMoney(refund)
     DBS.Util.Notify(ply, "Property sold for $" .. string.Comma(refund) .. ".")
 end
@@ -143,8 +174,13 @@ local function ApplyPersistentOwners()
         EnsureDoorUnlocked(ent)
 
         local id = DBS.Doors.GetDoorID(ent)
-        local owner = id and DBS.Doors.PersistentOwners[id] or 0
-        DBS.Doors.SetOwner(ent, tonumber(owner) or 0, false)
+        local entry = id and DBS.Doors.PersistentOwners[id] or nil
+
+        if istable(entry) then
+            DBS.Doors.SetOwner(ent, tonumber(entry.owner) or 0, false, entry.protected == true)
+        else
+            DBS.Doors.SetOwner(ent, tonumber(entry) or 0, false, false)
+        end
     end
 end
 
@@ -201,6 +237,7 @@ net.Receive("DBS_Doors_Action", function(_, ply)
     local targetTeam = adminTeamMap[action]
     if targetTeam == nil then return end
 
-    DBS.Doors.SetOwner(door, targetTeam, true)
-    DBS.Util.Notify(ply, "Door ownership saved: " .. DBS.Doors.GetOwnerLabel(targetTeam))
+    local protect = targetTeam ~= 0
+    DBS.Doors.SetOwner(door, targetTeam, true, protect)
+    DBS.Util.Notify(ply, "Door ownership saved: " .. DBS.Doors.GetOwnerLabel(targetTeam) .. (protect and " (HQ protected)" or ""))
 end)

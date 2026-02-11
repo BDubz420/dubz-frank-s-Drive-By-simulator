@@ -1,3 +1,26 @@
+
+if CLIENT then
+    hook.Add("HUDPaint", "DBS.Lockpick.Progress", function()
+        local ply = LocalPlayer()
+        if not IsValid(ply) then return end
+
+        local finish = ply:GetNWFloat("DBS_LockpickEnd", 0)
+        if finish <= CurTime() then return end
+
+        local start = ply:GetNWFloat("DBS_LockpickStart", 0)
+        local frac = math.Clamp((CurTime() - start) / math.max(0.1, finish - start), 0, 1)
+
+        local w, h = 360, 58
+        local x = (ScrW() - w) * 0.5
+        local y = ScrH() * 0.78
+
+        draw.RoundedBox(10, x, y, w, h, Color(14, 14, 18, 225))
+        draw.SimpleText("Lockpicking...", "DBS_UI_Body", x + 14, y + 16, color_white, TEXT_ALIGN_LEFT)
+        draw.RoundedBox(6, x + 14, y + 34, w - 28, 14, Color(40, 40, 40, 180))
+        draw.RoundedBox(6, x + 16, y + 36, (w - 32) * frac, 10, Color(80, 180, 120, 230))
+    end)
+end
+
 AddCSLuaFile()
 
 SWEP.PrintName = "Lockpick"
@@ -56,6 +79,8 @@ function SWEP:PrimaryAttack()
     ply:SetNWBool("DBS_IsLockpicking", true)
 
     local lockTime = DBS.Config.Cars.LockpickTime or 3
+    ply:SetNWFloat("DBS_LockpickStart", CurTime())
+    ply:SetNWFloat("DBS_LockpickEnd", CurTime() + lockTime)
     local startPos = ply:GetPos()
 
     if DBS.Config.Cars.LoudLockpick then
@@ -69,6 +94,7 @@ function SWEP:PrimaryAttack()
         if not IsValid(ply) then return end
 
         ply:SetNWBool("DBS_IsLockpicking", false)
+        ply:SetNWFloat("DBS_LockpickEnd", 0)
 
         if not ply:Alive() then return end
         if ply:InVehicle() then return end

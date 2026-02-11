@@ -35,7 +35,14 @@ function SWEP:SecondaryAttack()
 end
 
 local function IsBlockedTarget(ent)
-    return IsValid(ent) and BLOCKED_NPCS[ent:GetClass()] == true
+    if not IsValid(ent) then return false end
+
+    local class = ent:GetClass()
+    if BLOCKED_NPCS[class] then return true end
+    if string.StartWith(class, "dbs_npc_") then return true end
+    if class == "dbs_drug_dropbox" or class == "dbs_territory_pole" then return true end
+
+    return false
 end
 
 local function GetStealAmount(target)

@@ -29,8 +29,8 @@ if CLIENT then
         if not IsValid(ply) or not ply:Alive() then return end
 
         local money = ply:GetMoney()
-        local cred = ply:GetNWInt("DBS_Cred", 0)
-        local kills = ply:GetNWInt("DBS_Kills", 0)
+        local cred = (DBS.Player and DBS.Player.GetCred and DBS.Player.GetCred(ply)) or ply:GetNWInt("DBS_Cred", 0)
+        local kills = ply:Frags()
 
         local x = 24
         local y = ScrH() - 160

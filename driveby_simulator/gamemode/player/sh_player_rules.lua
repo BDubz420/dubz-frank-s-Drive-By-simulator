@@ -3,7 +3,7 @@ DBS.PlayerRules = DBS.PlayerRules or {}
 
 -- Slower, heavier movement for realism
 DBS.PlayerRules.WalkSpeed     = 95
-DBS.PlayerRules.RunSpeed      = 135
+DBS.PlayerRules.RunSpeed      = 104
 DBS.PlayerRules.SlowWalkSpeed = 70
 DBS.PlayerRules.CrouchSpeed   = 0.18
 DBS.PlayerRules.JumpPower     = 155
