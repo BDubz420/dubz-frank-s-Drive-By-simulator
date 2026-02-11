@@ -68,7 +68,29 @@ DBS.Config.Package = {
 -- PROPERTY / MACHINES
 -- =========================
 DBS.Config.Property = {
-    BuyCost = 5000
+    BuyCost = 5000,
+
+    Door = {
+        BuyCost = 1200,
+        SellRefundPercent = 0.5,
+        RequireGangTeam = true,
+        InteractionDistance = 140,
+        InteractionCooldown = 0.35
+    }
+}
+
+DBS.Config.Economy = {
+    StipendInterval = 90,
+    GangStipend = 125,
+    PoliceStipend = 175,
+
+    GangKillReward = 150,
+    PoliceKillReward = 100,
+
+    SoftWalletCap = 6000,
+    SoftCapPayoutScale = 0.35,
+
+    TransactionCooldown = 0.25
 }
 
 DBS.Config.GunTable = {
