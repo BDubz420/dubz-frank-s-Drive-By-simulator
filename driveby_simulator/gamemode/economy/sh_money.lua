@@ -1,0 +1,17 @@
+local PLAYER = FindMetaTable("Player")
+
+function PLAYER:GetMoney()
+    return self:GetNWInt("DBS_Money", 0)
+end
+
+function PLAYER:SetMoney(amount)
+    self:SetNWInt("DBS_Money", math.max(amount, 0))
+end
+
+function PLAYER:AddMoney(amount)
+    self:SetMoney(self:GetMoney() + amount)
+end
+
+function PLAYER:CanAfford(amount)
+    return self:GetMoney() >= amount
+end

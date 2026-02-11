@@ -1,0 +1,2 @@
+-- Lockpick server logic is currently inside the SWEP weapon_dbs_lockpick.lua
+-- This file is reserved for future: blacklist rules, lockpick permissions, alerts, etc.

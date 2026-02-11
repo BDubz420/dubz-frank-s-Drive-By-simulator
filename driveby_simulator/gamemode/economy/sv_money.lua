@@ -1,0 +1,2 @@
+-- Server-side money logic (Phase 2.x uses NWInt setters in sh_player/sh_money)
+-- Placeholder for future persistence, anti-exploit, logs, etc.

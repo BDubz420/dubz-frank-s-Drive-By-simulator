@@ -1,0 +1,8 @@
+"driveby_simulator"
+{
+    "base"        "sandbox"
+    "title"       "DriveBy Simulator"
+    "description" "High-risk gang warfare, territories, and drive-by combat."
+    "author"      "Dubz & Frank"
+    "version"     "0.2.0"
+}
