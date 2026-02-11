@@ -139,7 +139,8 @@ function ENT:Think()
     local owner = self:GetOwnerTeam()
     local state = self:GetState()
 
-    local captureTime = (DBS.Config.Territory and DBS.Config.Territory.CaptureTime) or 60
+    local capMin = (DBS.Config.Territory and DBS.Config.Territory.CaptureTimeMin) or 60
+    local capMax = (DBS.Config.Territory and DBS.Config.Territory.CaptureTimeMax) or capMin
 
     -- =========================
     -- Auto-start capture (NEUTRAL only)
@@ -154,6 +155,7 @@ function ENT:Think()
         end
 
         if IsValid(capturer) then
+            local captureTime = math.Rand(capMin, math.max(capMin, capMax))
             self:SetCapturingTeam(capturer:Team())
             self:SetCaptureEndsAt(now + captureTime)
 

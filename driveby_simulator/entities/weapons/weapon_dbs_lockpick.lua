@@ -2,7 +2,7 @@ AddCSLuaFile()
 
 SWEP.PrintName = "Lockpick"
 SWEP.Author = "Dubz & Frank"
-SWEP.Instructions = "Left click to lockpick a vehicle."
+SWEP.Instructions = "Left click to lockpick doors/vehicles."
 SWEP.Spawnable = false
 SWEP.AdminOnly = false
 
@@ -20,49 +20,83 @@ SWEP.Secondary.DefaultClip = -1
 SWEP.Secondary.Automatic = false
 SWEP.Secondary.Ammo = "none"
 
-local PICK_DISTANCE = 120
+local PICK_DISTANCE = 130
+
+local function IsPickableVehicle(ent)
+    if not IsValid(ent) then return false end
+    return ent:IsVehicle() or string.find(ent:GetClass(), "prop_vehicle", 1, true)
+end
+
+local function IsPickableDoor(ent)
+    return DBS.Doors and DBS.Doors.IsDoor and DBS.Doors.IsDoor(ent)
+end
 
 function SWEP:PrimaryAttack()
     if not SERVER then return end
+
     local ply = self:GetOwner()
-    if not IsValid(ply) then return end
-    if ply:InVehicle() then return end
+    if not IsValid(ply) or ply:InVehicle() then return end
 
     self:SetNextPrimaryFire(CurTime() + 0.5)
 
     local tr = ply:GetEyeTrace()
     if not tr.Hit or not IsValid(tr.Entity) then return end
-    if ply:GetPos():Distance(tr.HitPos) > PICK_DISTANCE then return end
+    if ply:GetPos():DistToSqr(tr.HitPos) > (PICK_DISTANCE * PICK_DISTANCE) then return end
 
     local ent = tr.Entity
-    if not ent:IsVehicle() and not string.find(ent:GetClass(), "prop_vehicle", 1, true) then return end
+    local pickVehicle = IsPickableVehicle(ent)
+    local pickDoor = IsPickableDoor(ent)
+
+    if not pickVehicle and not pickDoor then
+        DBS.Util.Notify(ply, "You can only lockpick doors and vehicles.")
+        return
+    end
 
     if ply:GetNWBool("DBS_IsLockpicking", false) then return end
     ply:SetNWBool("DBS_IsLockpicking", true)
+
+    local lockTime = DBS.Config.Cars.LockpickTime or 3
+    local startPos = ply:GetPos()
 
     if DBS.Config.Cars.LoudLockpick then
         ent:EmitSound("ambient/materials/metal_stress1.wav", 100, 100)
         ent:EmitSound("ambient/materials/metal_stress2.wav", 100, 100)
     end
 
-    local lockTime = DBS.Config.Cars.LockpickTime or 3
-    local startPos = ply:GetPos()
+    DBS.Util.Notify(ply, "Lockpicking...")
 
     timer.Simple(lockTime, function()
         if not IsValid(ply) then return end
+
         ply:SetNWBool("DBS_IsLockpicking", false)
 
-        -- cancel if moved too far / died
         if not ply:Alive() then return end
-        if ply:GetPos():Distance(startPos) > 120 then return end
-        if not IsValid(ent) then return end
         if ply:InVehicle() then return end
+        if ply:GetPos():DistToSqr(startPos) > (120 * 120) then return end
+        if not IsValid(ent) then return end
 
-        -- Convert if enemy-owned
-        if DBS.Vehicles and DBS.Vehicles.HandleConversion then
-            DBS.Vehicles.HandleConversion(ply, ent)
+        if pickVehicle then
+            if DBS.Vehicles and DBS.Vehicles.HandleConversion then
+                DBS.Vehicles.HandleConversion(ply, ent)
+            end
+
+            if IsValid(ent:GetDriver()) and ent:GetDriver() ~= ply then
+                DBS.Util.Notify(ply, "Someone is driving this right now.")
+                return
+            end
+
+            ply:EnterVehicle(ent)
+            DBS.Util.Notify(ply, "Vehicle lockpicked.")
+            return
         end
 
-        ply:EnterVehicle(ent)
+        if pickDoor then
+            ent:SetNWFloat("DBS_DoorBreachUntil", CurTime() + 8)
+            ply:SetNWFloat("DBS_DoorAccessUntil", CurTime() + 8)
+            ent:Fire("Unlock", "", 0)
+            ent:Fire("Open", "", 0.05)
+            DBS.Util.Notify(ply, "Door lockpicked. You have a short access window.")
+            return
+        end
     end)
 end
