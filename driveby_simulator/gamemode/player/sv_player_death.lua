@@ -1,57 +1,43 @@
 DBS = DBS or {}
 DBS.Player = DBS.Player or {}
 
--- =========================
--- Handle Player Death
--- =========================
+util.AddNetworkString("DBS_DeathInfo")
+
+local RESPAWN_DELAY = 10
+
 hook.Add("PlayerDeath", "DBS.PlayerDeathCore", function(victim, inflictor, attacker)
     if not IsValid(victim) then return end
 
-    -- =========================
-    -- DROP WEAPONS
-    -- =========================
-    for _, wep in ipairs(victim:GetWeapons()) do
-        if IsValid(wep) then
-            local class = wep:GetClass()
+    DBS.Player.DropAllVulnerable(victim)
 
-            -- Skip blacklisted weapons
-            if not DBS.Config.WeaponDropBlacklist[class] then
-                local drop = ents.Create(class)
-                if IsValid(drop) then
-                    drop:SetPos(victim:GetPos() + VectorRand() * 10 + Vector(0, 0, 20))
-                    drop:SetAngles(AngleRand())
-                    drop:Spawn()
-                end
-            end
-        end
+    local killerName = "Unknown"
+    local mode = "killed"
+
+    if attacker == victim then
+        mode = "suicide"
+        killerName = victim:Nick()
+    elseif IsValid(attacker) and attacker:IsPlayer() then
+        killerName = attacker:Nick()
+    elseif IsValid(attacker) then
+        killerName = attacker:GetClass()
     end
 
-    victim:StripWeapons()
+    local respawnAt = CurTime() + RESPAWN_DELAY
+    victim:SetNWFloat("DBS_RespawnAt", respawnAt)
 
-    -- =========================
-    -- DROP MONEY
-    -- =========================
-    local money = DBS.Player.GetMoney(victim)
-    if money and money > 0 then
-        local cash = ents.Create("dbs_money_drop")
-        if IsValid(cash) then
-            cash:SetPos(victim:GetPos() + Vector(0, 0, 15))
-            cash:SetAmount(money)
-            cash:Spawn()
+    net.Start("DBS_DeathInfo")
+        net.WriteString(mode)
+        net.WriteString(killerName)
+        net.WriteFloat(respawnAt)
+    net.Send(victim)
+
+    timer.Create("DBS.Respawn." .. victim:SteamID64(), RESPAWN_DELAY, 1, function()
+        if IsValid(victim) and not victim:Alive() then
+            victim:Spawn()
         end
-    end
-
-    DBS.Player.SetMoney(victim, 0)
-
-    -- =========================
-    -- RESET CRED
-    -- =========================
-    DBS.Player.SetCred(victim, 0)
+    end)
 end)
 
--- =========================
--- Gang Kill → Cred Progression
--- =========================
 hook.Add("PlayerDeath", "DBS.CredOnKill", function(victim, inflictor, attacker)
     if not IsValid(attacker) or not attacker:IsPlayer() then return end
     if attacker == victim then return end
@@ -66,9 +52,6 @@ hook.Add("PlayerDeath", "DBS.CredOnKill", function(victim, inflictor, attacker)
     end
 end)
 
--- =========================
--- Police Kill Tracking
--- =========================
 hook.Add("PlayerDeath", "DBS.PoliceKillTrack", function(victim, inflictor, attacker)
     if not IsValid(attacker) or not attacker:IsPlayer() then return end
     if attacker == victim then return end
@@ -76,4 +59,21 @@ hook.Add("PlayerDeath", "DBS.PoliceKillTrack", function(victim, inflictor, attac
 
     local pk = attacker:GetNWInt("DBS_PoliceKills", 0) + 1
     attacker:SetNWInt("DBS_PoliceKills", pk)
+end)
+
+
+hook.Add("PlayerDeathThink", "DBS.RespawnDelay", function(ply)
+    local at = ply:GetNWFloat("DBS_RespawnAt", 0)
+    if at > CurTime() then
+        return false
+    end
+end)
+
+hook.Add("PlayerSpawn", "DBS.ClearRespawnDelay", function(ply)
+    ply:SetNWFloat("DBS_RespawnAt", 0)
+    timer.Remove("DBS.Respawn." .. ply:SteamID64())
+end)
+
+hook.Add("PlayerDisconnected", "DBS.ClearRespawnTimer", function(ply)
+    timer.Remove("DBS.Respawn." .. ply:SteamID64())
 end)
