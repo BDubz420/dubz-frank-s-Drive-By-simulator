@@ -23,6 +23,12 @@ net.Receive("DBS_Eli_Buy", function(_, ply)
     local tier = net.ReadUInt(3)
     local class = net.ReadString()
 
+    local econCooldown = DBS.Config.Economy and DBS.Config.Economy.TransactionCooldown or 0.25
+    if not ply:CanRunEconomyAction(econCooldown) then
+        DBS.Util.Notify(ply, "Slow down. One deal at a time.")
+        return
+    end
+
     local isPolice = DBS.Util.IsPolice(ply)
     local shop = isPolice and DBS.Config.Shop.Police or DBS.Config.Shop.Gang
     local tierData = shop.Tiers[tier]
@@ -74,6 +80,12 @@ net.Receive("DBS_Eli_Sell", function(_, ply)
 
     local class = net.ReadString()
     if not class or class == "" then return end
+
+    local econCooldown = DBS.Config.Economy and DBS.Config.Economy.TransactionCooldown or 0.25
+    if not ply:CanRunEconomyAction(econCooldown) then
+        DBS.Util.Notify(ply, "Slow down. One deal at a time.")
+        return
+    end
 
     -- Disallowed items
     if DBS.Inventory.IgnoreWeapons[class] or class == "weapon_dbs_lockpick" then

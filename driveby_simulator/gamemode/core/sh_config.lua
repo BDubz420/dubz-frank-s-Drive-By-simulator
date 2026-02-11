@@ -68,7 +68,29 @@ DBS.Config.Package = {
 -- PROPERTY / MACHINES
 -- =========================
 DBS.Config.Property = {
-    BuyCost = 5000
+    BuyCost = 5000,
+
+    Door = {
+        BuyCost = 1200,
+        SellRefundPercent = 0.5,
+        RequireGangTeam = true,
+        InteractionDistance = 140,
+        InteractionCooldown = 0.35
+    }
+}
+
+DBS.Config.Economy = {
+    StipendInterval = 90,
+    GangStipend = 125,
+    PoliceStipend = 175,
+
+    GangKillReward = 150,
+    PoliceKillReward = 100,
+
+    SoftWalletCap = 6000,
+    SoftCapPayoutScale = 0.35,
+
+    TransactionCooldown = 0.25
 }
 
 DBS.Config.GunTable = {
@@ -140,20 +162,22 @@ DBS.Config.PlayerModels = {
     },
 
     [DBS.Const.Teams.RED] = {
+        "models/player/bloodz/playermodels/bloodzpm.mdl",
+        "models/player/bloodz/playermodels/bloodzpm_02.mdl",
         "models/player/group03/male_01.mdl",
-        "models/player/group03/male_02.mdl",
-        "models/player/group03/male_03.mdl",
     },
 
     [DBS.Const.Teams.BLUE] = {
-        "models/player/group03/male_04.mdl",
-        "models/player/group03/male_05.mdl",
+        "models/player/cripz/playermodels/cripzpm.mdl",
+        "models/player/cripz/playermodels/cripzpm_02.mdl",
         "models/player/group03/male_06.mdl",
     },
 
     [DBS.Const.Teams.POLICE] = {
         "models/player/police.mdl",
-        "models/player/police_fem.mdl"
+        "models/player/police_fem.mdl",
+        "models/player/combine_soldier.mdl",
+        "models/player/combine_soldier_prisonguard.mdl"
     }
 }
 -- =========================
@@ -173,10 +197,15 @@ DBS.Config.Vehicles = {
     UseTeamColors = true
 }
 
+
+DBS.Config.Vulnerability = {
+    KnockoutDuration = 15,
+    KnockoutChanceOnFatal = 0.5
+}
+
 DBS.Config.WeaponDropBlacklist = {
     ["weapon_fists"] = true,
     ["weapon_dbs_hands"] = true,
-    ["weapon_dbs_lockpick"] = true,
 }
 
 -- =========================
