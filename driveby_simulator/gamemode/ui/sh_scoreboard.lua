@@ -2,44 +2,51 @@ if not CLIENT then return end
 
 local SCOREBOARD
 
-surface.CreateFont("DBS_SB_Title", {
-    font = "Roboto",
-    size = 30,
-    weight = 900
-})
-
-surface.CreateFont("DBS_SB_Header", {
-    font = "Roboto",
-    size = 18,
-    weight = 700
-})
-
-surface.CreateFont("DBS_SB_Player", {
-    font = "Roboto",
-    size = 16,
-    weight = 500
-})
+surface.CreateFont("DBS_SB_Title", { font = "Roboto", size = 30, weight = 900 })
+surface.CreateFont("DBS_SB_Header", { font = "Roboto", size = 18, weight = 700 })
+surface.CreateFont("DBS_SB_Player", { font = "Roboto", size = 16, weight = 500 })
 
 local function TeamCount(teamID)
     local count = 0
     for _, ply in ipairs(player.GetAll()) do
-        if ply:Team() == teamID then
+        local pTeam = ply:Team()
+        if teamID == 0 then
+            if pTeam == 0 or pTeam == TEAM_UNASSIGNED then count = count + 1 end
+        elseif pTeam == teamID then
             count = count + 1
         end
     end
     return count
 end
 
+local function TeamName(teamID)
+    if teamID == 0 then return "Unassigned" end
+    return team.GetName(teamID) or "Unknown"
+end
+
 local function TeamColor(teamID)
+    if teamID == 0 then return Color(190, 190, 190) end
     return team.GetColor(teamID) or Color(160, 160, 160)
 end
 
 local function SortedPlayers(teamID)
-    local players = team.GetPlayers(teamID)
-    table.sort(players, function(a, b)
+    local list = {}
+
+    for _, ply in ipairs(player.GetAll()) do
+        local pTeam = ply:Team()
+        if (teamID == 0 and (pTeam == 0 or pTeam == TEAM_UNASSIGNED)) or pTeam == teamID then
+            list[#list + 1] = ply
+        end
+    end
+
+    table.sort(list, function(a, b)
+        if a:Frags() == b:Frags() then
+            return a:Nick():lower() < b:Nick():lower()
+        end
         return a:Frags() > b:Frags()
     end)
-    return players
+
+    return list
 end
 
 local function CreatePlayerRow(parent, ply, index)
@@ -73,7 +80,7 @@ local function CreateTeamColumn(parent, teamID)
 
     panel.Paint = function(self, w, h)
         draw.RoundedBox(6, 0, 0, w, h, Color(10, 10, 10, 220))
-        draw.SimpleText(team.GetName(teamID) .. " (" .. TeamCount(teamID) .. ")", "DBS_SB_Header", w * 0.5, 12, TeamColor(teamID), TEXT_ALIGN_CENTER)
+        draw.SimpleText(TeamName(teamID) .. " (" .. TeamCount(teamID) .. ")", "DBS_SB_Header", w * 0.5, 12, TeamColor(teamID), TEXT_ALIGN_CENTER)
         draw.SimpleText("CRED / MONEY / KILLS / PING", "DBS_SB_Player", w * 0.5, 32, Color(180, 180, 180), TEXT_ALIGN_CENTER)
     end
 
@@ -89,7 +96,7 @@ end
 
 local function BuildScoreboard()
     SCOREBOARD = vgui.Create("DFrame")
-    SCOREBOARD:SetSize(ScrW() * 0.9, ScrH() * 0.86)
+    SCOREBOARD:SetSize(ScrW() * 0.92, ScrH() * 0.86)
     SCOREBOARD:Center()
     SCOREBOARD:SetTitle("")
     SCOREBOARD:ShowCloseButton(false)
@@ -106,15 +113,11 @@ local function BuildScoreboard()
     body:DockMargin(16, 64, 16, 40)
     body.Paint = nil
 
-    local teamsToRender = {
-        DBS.Const.Teams.RED,
-        DBS.Const.Teams.BLUE,
-        DBS.Const.Teams.POLICE
-    }
+    local teamsToRender = { DBS.Const.Teams.RED, DBS.Const.Teams.BLUE, DBS.Const.Teams.POLICE, 0 }
 
     local columns = {}
     for _, teamID in ipairs(teamsToRender) do
-        table.insert(columns, CreateTeamColumn(body, teamID))
+        columns[#columns + 1] = CreateTeamColumn(body, teamID)
     end
 
     body.PerformLayout = function(self, w)
@@ -129,7 +132,6 @@ local function BuildScoreboard()
 
     for _, col in ipairs(columns) do
         col.Scroll:Clear()
-
         for i, ply in ipairs(SortedPlayers(col.TeamID)) do
             CreatePlayerRow(col.Scroll, ply, i)
         end

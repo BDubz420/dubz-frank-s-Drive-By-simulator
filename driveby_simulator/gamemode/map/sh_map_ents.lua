@@ -28,6 +28,13 @@ DBS.MapEnts.List = {
         ang   = Angle(0, 0, 0),
         kv    = { team = "police" }
     },
+    -- Pickpocket Trainer
+    {
+        class = "dbs_npc_pickpocket_trainer",
+        pos   = Vector(2465, 1735, 128),
+        ang   = Angle(0, 180, 0),
+    },
+
     -- Territories
     {
         class = "dbs_territory_pole",

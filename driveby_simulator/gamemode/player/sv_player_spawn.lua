@@ -30,8 +30,12 @@ hook.Add("PlayerSpawn", "DBS.PlayerSpawn", function(ply)
     ----------------------------------------------------------------
     ply:Give("weapon_fists")
     ply:Give("weapon_dbs_hands")
-    
+
     ply:Give("weapon_dbs_lockpick")
+
+    if ply:GetNWBool("DBS_TrainedPickpocket", false) then
+        ply:Give("weapon_dbs_pickpocket")
+    end
 
     ply:SelectWeapon("weapon_dbs_hands")
 

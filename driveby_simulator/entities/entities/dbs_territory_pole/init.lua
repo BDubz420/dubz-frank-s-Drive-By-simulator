@@ -95,6 +95,8 @@ function ENT:Initialize()
     self:SetCapturingTeam(0)
     self:SetCaptureEndsAt(0)
 
+    self.NoMoneyBlock = {}
+
     -- =========================
     -- Territory Flag (Child)
     -- =========================
@@ -139,21 +141,36 @@ function ENT:Think()
     local owner = self:GetOwnerTeam()
     local state = self:GetState()
 
-    local captureTime = (DBS.Config.Territory and DBS.Config.Territory.CaptureTime) or 60
+    local capMin = (DBS.Config.Territory and DBS.Config.Territory.CaptureTimeMin) or 60
+    local capMax = (DBS.Config.Territory and DBS.Config.Territory.CaptureTimeMax) or capMin
+
+    local inRange = self:GetPlayersInCaptureRange()
+    local inRangeMap = {}
+    for _, ply in ipairs(inRange) do
+        inRangeMap[ply:SteamID64()] = true
+    end
+
+    for sid in pairs(self.NoMoneyBlock or {}) do
+        if not inRangeMap[sid] then
+            self.NoMoneyBlock[sid] = nil
+        end
+    end
 
     -- =========================
     -- Auto-start capture (NEUTRAL only)
     -- =========================
     if owner == 0 and self:GetCapturingTeam() == 0 then
         local capturer
-        for _, ply in ipairs(self:GetPlayersInCaptureRange()) do
-            if ply:Team() ~= 0 and not DBS.Util.IsPolice(ply) then
+        for _, ply in ipairs(inRange) do
+            local sid = ply:SteamID64()
+            if ply:Team() ~= 0 and not DBS.Util.IsPolice(ply) and not (self.NoMoneyBlock and self.NoMoneyBlock[sid]) then
                 capturer = ply
                 break
             end
         end
 
         if IsValid(capturer) then
+            local captureTime = math.Rand(capMin, math.max(capMin, capMax))
             self:SetCapturingTeam(capturer:Team())
             self:SetCaptureEndsAt(now + captureTime)
 
@@ -257,7 +274,9 @@ function ENT:Think()
         -- Cost (only for gangs)
         local cost = DBS.Config.Territory.CaptureCost or 5000
         if not claimant:CanAfford(cost) then
-            NotifyOne(claimant, ("Not enough money to claim ($%s)."):format(cost))
+            NotifyOne(claimant, ("Not enough money to claim ($%s). Leave and return to retry."):format(cost))
+            self.NoMoneyBlock = self.NoMoneyBlock or {}
+            self.NoMoneyBlock[claimant:SteamID64()] = true
             self:SetCapturingTeam(0)
             self:SetCaptureEndsAt(0)
             self:NextThink(now + 1)

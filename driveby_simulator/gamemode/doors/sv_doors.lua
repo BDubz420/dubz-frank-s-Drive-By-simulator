@@ -1,6 +1,14 @@
 DBS = DBS or {}
 DBS.Doors = DBS.Doors or {}
 
+util.AddNetworkString("DBS_Doors_OpenMenu")
+util.AddNetworkString("DBS_Doors_Action")
+
+local DATA_DIR = "dbs"
+local DATA_FILE = DATA_DIR .. "/doors_" .. game.GetMap() .. ".json"
+
+DBS.Doors.PersistentOwners = DBS.Doors.PersistentOwners or {}
+
 local function GetCfg()
     return DBS.Config.Property and DBS.Config.Property.Door or {}
 end
@@ -9,25 +17,73 @@ local function IsGangTeam(teamID)
     return teamID == DBS.Const.Teams.RED or teamID == DBS.Const.Teams.BLUE
 end
 
-local function IsOwnedByEnemy(ply, door)
-    local ownerTeam = DBS.Doors.GetOwnerTeam(door)
-    return ownerTeam ~= 0 and ownerTeam ~= ply:Team()
+local function CanAccessEnemyDoor(ply, door)
+    local breachUntil = door:GetNWFloat("DBS_DoorBreachUntil", 0)
+    if breachUntil > CurTime() then return true end
+
+    if IsValid(ply) then
+        local accessUntil = ply:GetNWFloat("DBS_DoorAccessUntil", 0)
+        if accessUntil > CurTime() then return true end
+    end
+
+    return false
 end
 
-function DBS.Doors.SetOwner(door, ownerTeam)
+local function EnsureDoorUnlocked(door)
     if not IsValid(door) then return end
+
+    door:Fire("Unlock", "", 0)
+    door:SetSaveValue("m_bLocked", false)
+end
+
+local function SaveDoorData()
+    if not file.IsDir(DATA_DIR, "DATA") then
+        file.CreateDir(DATA_DIR)
+    end
+
+    file.Write(DATA_FILE, util.TableToJSON(DBS.Doors.PersistentOwners, true))
+end
+
+local function LoadDoorData()
+    if not file.Exists(DATA_FILE, "DATA") then
+        DBS.Doors.PersistentOwners = {}
+        return
+    end
+
+    local parsed = util.JSONToTable(file.Read(DATA_FILE, "DATA") or "")
+    DBS.Doors.PersistentOwners = istable(parsed) and parsed or {}
+end
+
+function DBS.Doors.SetOwner(door, ownerTeam, shouldPersist)
+    if not IsValid(door) then return end
+
+    ownerTeam = ownerTeam or 0
 
     door:SetNWInt("DBS_DoorOwner", ownerTeam)
 
     if ownerTeam == 0 then
         door:SetColor(Color(255, 255, 255))
-        door:SetRenderMode(RENDERMODE_NORMAL)
-        return
+    else
+        local c = DBS.Doors.GetTeamColor(ownerTeam)
+        door:SetColor(Color(c.r, c.g, c.b, 255))
     end
 
-    local c = DBS.Doors.GetTeamColor(ownerTeam)
-    door:SetColor(Color(c.r, c.g, c.b, 255))
     door:SetRenderMode(RENDERMODE_NORMAL)
+
+    if shouldPersist then
+        local id = DBS.Doors.GetDoorID(door)
+        if id then
+            DBS.Doors.PersistentOwners[id] = ownerTeam
+            SaveDoorData()
+        end
+    end
+end
+
+function DBS.Doors.GetPriceInfo()
+    local cfg = GetCfg()
+    local buyPrice = cfg.BuyCost or 0
+    local refund = math.floor((cfg.BuyCost or 0) * (cfg.SellRefundPercent or 0))
+    return buyPrice, refund
 end
 
 local function TryBuyDoor(ply, door)
@@ -35,95 +91,116 @@ local function TryBuyDoor(ply, door)
     local plyTeam = ply:Team()
 
     if cfg.RequireGangTeam and not IsGangTeam(plyTeam) then
-        DBS.Util.Notify(ply, "Only gangs can own properties.")
-        return
-    end
-
-    if IsOwnedByEnemy(ply, door) then
-        DBS.Util.Notify(ply, "Enemy gang owns this property.")
+        DBS.Util.Notify(ply, "Only gangs can buy these properties.")
         return
     end
 
     local ownerTeam = DBS.Doors.GetOwnerTeam(door)
-    if ownerTeam == plyTeam then
-        DBS.Util.Notify(ply, "Your gang already owns this property.")
+    if ownerTeam ~= 0 and ownerTeam ~= plyTeam then
+        DBS.Util.Notify(ply, "Enemy control. You can't buy this right now.")
         return
     end
 
-    local price = cfg.BuyCost or 0
-    if not ply:CanAfford(price) then
+    if ownerTeam == plyTeam then
+        DBS.Util.Notify(ply, "Your side already owns this property.")
+        return
+    end
+
+    local buyPrice = DBS.Doors.GetPriceInfo()
+    if not ply:CanAfford(buyPrice) then
         DBS.Util.Notify(ply, "You cannot afford this property.")
         return
     end
 
-    ply:AddMoney(-price)
-    DBS.Doors.SetOwner(door, plyTeam)
-
-    DBS.Util.Notify(ply, "Property purchased for $" .. string.Comma(price) .. ".")
+    ply:AddMoney(-buyPrice)
+    DBS.Doors.SetOwner(door, plyTeam, false)
+    DBS.Util.Notify(ply, "Property bought for $" .. string.Comma(buyPrice) .. ".")
 end
 
 local function TrySellDoor(ply, door)
-    local cfg = GetCfg()
     local ownerTeam = DBS.Doors.GetOwnerTeam(door)
 
     if ownerTeam == 0 then
-        DBS.Util.Notify(ply, "This property is not owned.")
+        DBS.Util.Notify(ply, "This property is already unowned.")
         return
     end
 
     if ownerTeam ~= ply:Team() then
-        DBS.Util.Notify(ply, "Your gang does not own this property.")
+        DBS.Util.Notify(ply, "You don't own this property.")
         return
     end
 
-    local basePrice = cfg.BuyCost or 0
-    local refundPct = cfg.SellRefundPercent or 0
-    local refund = math.floor(basePrice * refundPct)
-
-    DBS.Doors.SetOwner(door, 0)
+    local _, refund = DBS.Doors.GetPriceInfo()
+    DBS.Doors.SetOwner(door, 0, false)
     ply:AddMoney(refund)
     DBS.Util.Notify(ply, "Property sold for $" .. string.Comma(refund) .. ".")
+end
+
+local function ApplyPersistentOwners()
+    for _, ent in ipairs(ents.GetAll()) do
+        if not DBS.Doors.IsDoor(ent) then continue end
+
+        EnsureDoorUnlocked(ent)
+
+        local id = DBS.Doors.GetDoorID(ent)
+        local owner = id and DBS.Doors.PersistentOwners[id] or 0
+        DBS.Doors.SetOwner(ent, tonumber(owner) or 0, false)
+    end
 end
 
 hook.Add("PlayerUse", "DBS.Doors.UseRestrictions", function(ply, ent)
     if not DBS.Doors.IsDoor(ent) then return end
 
     local owner = DBS.Doors.GetOwnerTeam(ent)
-    if owner ~= 0 and owner ~= ply:Team() then
-        DBS.Util.Notify(ply, "This property is controlled by " .. team.GetName(owner) .. ".")
+    if owner ~= 0 and owner ~= ply:Team() and not CanAccessEnemyDoor(ply, ent) then
+        DBS.Util.Notify(ply, "Locked by " .. team.GetName(owner) .. ".")
         return false
     end
 end)
 
-hook.Add("KeyPress", "DBS.Doors.Interact", function(ply, key)
-    if key ~= IN_USE then return end
+hook.Add("InitPostEntity", "DBS.Doors.LoadAndApply", function()
+    LoadDoorData()
+    ApplyPersistentOwners()
+end)
+
+net.Receive("DBS_Doors_Action", function(_, ply)
+    if not IsValid(ply) then return end
+
+    local door = net.ReadEntity()
+    local action = net.ReadString()
+
+    if not IsValid(door) or not DBS.Doors.IsDoor(door) then return end
 
     local cfg = GetCfg()
-    local tr = ply:GetEyeTrace()
-    if not tr or not IsValid(tr.Entity) then return end
-
-    local door = tr.Entity
-    if not DBS.Doors.IsDoor(door) then return end
-
     local maxDist = cfg.InteractionDistance or 140
     if ply:GetPos():DistToSqr(door:GetPos()) > (maxDist * maxDist) then return end
 
     local econCooldown = DBS.Config.Economy and DBS.Config.Economy.TransactionCooldown or 0.25
     local interactionCooldown = math.max(cfg.InteractionCooldown or 0.35, econCooldown)
-
     if not ply:CanRunEconomyAction(interactionCooldown) then return end
 
-    if ply:KeyDown(IN_SPEED) then
-        TrySellDoor(ply, door)
-    else
+    if action == "buy" then
         TryBuyDoor(ply, door)
+        return
     end
-end)
 
-hook.Add("InitPostEntity", "DBS.Doors.InitializeDoorState", function()
-    for _, ent in ipairs(ents.GetAll()) do
-        if DBS.Doors.IsDoor(ent) then
-            DBS.Doors.SetOwner(ent, 0)
-        end
+    if action == "sell" then
+        TrySellDoor(ply, door)
+        return
     end
+
+    if not ply:IsAdmin() then return end
+
+    local adminTeamMap = {
+        set_red = DBS.Const.Teams.RED,
+        set_blue = DBS.Const.Teams.BLUE,
+        set_police = DBS.Const.Teams.POLICE,
+        set_unowned = 0
+    }
+
+    local targetTeam = adminTeamMap[action]
+    if targetTeam == nil then return end
+
+    DBS.Doors.SetOwner(door, targetTeam, true)
+    DBS.Util.Notify(ply, "Door ownership saved: " .. DBS.Doors.GetOwnerLabel(targetTeam))
 end)
