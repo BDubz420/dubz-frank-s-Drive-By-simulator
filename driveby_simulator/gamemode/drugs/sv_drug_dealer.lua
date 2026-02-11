@@ -4,9 +4,14 @@ DBS.DrugDealer = DBS.DrugDealer or {}
 util.AddNetworkString("DBS_Drugs_Open")
 util.AddNetworkString("DBS_Drugs_Action")
 
+local function SupplyPrice()
+    return math.max(50, tonumber((DBS.Config.Drugs and DBS.Config.Drugs.SupplyPrice) or 300) or 300)
+end
+
 function DBS.DrugDealer.Open(ply)
     net.Start("DBS_Drugs_Open")
-        net.WriteInt(ply:GetNWInt("DBS_Drugs", 0), 16)
+        net.WriteInt(ply:GetNWInt("DBS_CokeBricks", 0), 16)
+        net.WriteInt(SupplyPrice(), 16)
     net.Send(ply)
 end
 
@@ -24,9 +29,22 @@ end
 net.Receive("DBS_Drugs_Action", function(_, ply)
     local action = net.ReadString()
 
+    if action == "buy_supplies" then
+        local price = SupplyPrice()
+        if not ply:CanAfford(price) then DBS.Util.Notify(ply, "Can't afford supplies case.") return end
+        local ent = ents.Create("dbs_coke_supply")
+        if not IsValid(ent) then return end
+        ent:SetPos(ply:GetPos() + ply:GetForward() * 30 + Vector(0, 0, 20))
+        ent:Spawn()
+        ply:AddMoney(-price)
+        DBS.Util.Notify(ply, "Bought coke supplies for $" .. string.Comma(price) .. ".")
+        DBS.DrugDealer.Open(ply)
+        return
+    end
+
     if action == "setup_meet" then
-        local units = ply:GetNWInt("DBS_Drugs", 0)
-        if units <= 0 then DBS.Util.Notify(ply, "You have no drugs to move.") return end
+        local units = ply:GetNWInt("DBS_CokeBricks", 0)
+        if units <= 0 then DBS.Util.Notify(ply, "You have no coke bricks to move.") return end
 
         local box = FindNearestDropbox(ply:GetPos())
         if not IsValid(box) then DBS.Util.Notify(ply, "No dropbox available.") return end
@@ -60,13 +78,13 @@ function DBS.DrugDealer.TryDeliver(ply, box)
     local units = ply:GetNWInt("DBS_DrugMeetUnits", 0)
     if units <= 0 then return end
 
-    local cur = ply:GetNWInt("DBS_Drugs", 0)
+    local cur = ply:GetNWInt("DBS_CokeBricks", 0)
     local moved = math.min(units, cur)
     if moved <= 0 then DBS.Util.Notify(ply, "No product to deliver.") return end
 
     local payout = moved * ((DBS.Config.Drugs and DBS.Config.Drugs.PayoutPerUnit) or 90)
 
-    ply:SetNWInt("DBS_Drugs", cur - moved)
+    ply:SetNWInt("DBS_CokeBricks", cur - moved)
     ply:SetNWInt("DBS_DrugMeetUnits", 0)
     ply:SetNWEntity("DBS_DrugMeetBox", NULL)
 

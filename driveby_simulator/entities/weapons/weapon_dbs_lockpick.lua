@@ -45,6 +45,20 @@ SWEP.Secondary.Ammo = "none"
 
 local PICK_DISTANCE = 130
 
+local function GetLockpickLevel(ply)
+    return math.Clamp(ply:GetNWInt("DBS_LockpickSkillLevel", 1), 1, 5)
+end
+
+local function GetLockpickTime(ply)
+    local lvl = GetLockpickLevel(ply)
+    return math.Clamp(4.5 - (lvl - 1) * 0.62, 2.0, 4.5)
+end
+
+local function GetFailChance(ply)
+    local lvl = GetLockpickLevel(ply)
+    return math.Clamp(0.38 - (lvl - 1) * 0.07, 0.1, 0.38)
+end
+
 local function IsPickableVehicle(ent)
     if not IsValid(ent) then return false end
     return ent:IsVehicle() or string.find(ent:GetClass(), "prop_vehicle", 1, true)
@@ -78,7 +92,7 @@ function SWEP:PrimaryAttack()
     if ply:GetNWBool("DBS_IsLockpicking", false) then return end
     ply:SetNWBool("DBS_IsLockpicking", true)
 
-    local lockTime = DBS.Config.Cars.LockpickTime or 3
+    local lockTime = GetLockpickTime(ply)
     ply:SetNWFloat("DBS_LockpickStart", CurTime())
     ply:SetNWFloat("DBS_LockpickEnd", CurTime() + lockTime)
     local startPos = ply:GetPos()
@@ -100,6 +114,11 @@ function SWEP:PrimaryAttack()
         if ply:InVehicle() then return end
         if ply:GetPos():DistToSqr(startPos) > (120 * 120) then return end
         if not IsValid(ent) then return end
+
+        if math.Rand(0, 1) < GetFailChance(ply) then
+            DBS.Util.Notify(ply, "Lockpick failed. Try again.")
+            return
+        end
 
         if pickVehicle then
             if DBS.Vehicles and DBS.Vehicles.HandleConversion then

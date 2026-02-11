@@ -49,7 +49,8 @@ DBS.Config.Territory = {
 
     DecayTime = 300, -- 5 minutes
 
-    ContestEnabled = true
+    ContestEnabled = true,
+    SuppliesPerCapture = 8
 }
 
 -- =========================
@@ -138,6 +139,7 @@ DBS.Config.LockpickTrainingCost = 250
 
 DBS.Config.Drugs = {
     PayoutPerUnit = 90,
+    SupplyPrice = 300,
     MeetDuration = 180,
     DropboxModel = "models/props_vents/vent_medium_grill002.mdl"
 }

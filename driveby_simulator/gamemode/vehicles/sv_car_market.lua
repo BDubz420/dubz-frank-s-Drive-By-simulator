@@ -28,7 +28,8 @@ local function GetAmbientConfig()
     return {
         max = math.max(0, tonumber(cfg.AmbientMax) or 10),
         interval = math.max(8, tonumber(cfg.AmbientInterval) or 18),
-        points = table.Copy(cfg.SpawnPositions or {})
+        points = table.Copy(cfg.SpawnPositions or {}),
+        allowed = {}
     }
 end
 
@@ -110,7 +111,8 @@ local function SaveAmbientConfig(data)
     local payload = {
         max = math.max(0, tonumber(data and data.max) or 0),
         interval = math.max(8, tonumber(data and data.interval) or 18),
-        points = SerializeSpawnPoints(data and data.points or {})
+        points = SerializeSpawnPoints(data and data.points or {}),
+        allowed = istable(data and data.allowed) and data.allowed or {}
     }
 
     if not file.IsDir("dbs", "DATA") then file.CreateDir("dbs") end
@@ -133,6 +135,7 @@ local function LoadAmbientConfig()
     base.max = math.max(0, tonumber(parsed.max) or base.max)
     base.interval = math.max(8, tonumber(parsed.interval) or base.interval)
     if istable(parsed.points) then base.points = NormalizeSpawnPoints(parsed.points) end
+    if istable(parsed.allowed) then base.allowed = parsed.allowed end
 
     DBS.CarMarket.AmbientCfg = base
 end
@@ -167,6 +170,17 @@ function DBS.CarMarket.RemoveNearestAmbientSpawn(pos)
     end
 
     return false
+end
+
+function DBS.CarMarket.SetAmbientAllowed(indices)
+    LoadAmbientConfig()
+    local out = {}
+    for _, idx in ipairs(indices or {}) do
+        local n = math.floor(tonumber(idx) or 0)
+        if n > 0 then out[#out + 1] = n end
+    end
+    DBS.CarMarket.AmbientCfg.allowed = out
+    SaveAmbientConfig(DBS.CarMarket.AmbientCfg)
 end
 
 function DBS.CarMarket.SetAmbientSettings(maxCount, interval)
@@ -301,7 +315,17 @@ function DBS.CarMarket.SpawnOneAmbientCar()
 
     if current >= maxAmbient then return end
 
-    local stock = table.Random(cfg.Stock)
+    local pool = {}
+    local allowed = DBS.CarMarket.AmbientCfg and DBS.CarMarket.AmbientCfg.allowed or {}
+    if istable(allowed) and #allowed > 0 then
+        for _, idx in ipairs(allowed) do
+            local st = cfg.Stock[tonumber(idx) or 0]
+            if st then pool[#pool + 1] = st end
+        end
+    end
+    if #pool == 0 then pool = cfg.Stock end
+
+    local stock = table.Random(pool)
     local ent = SpawnCar(NULL, stock, false)
     if IsValid(ent) then
         ent:SetNWBool("DBS_AmbientCar", true)

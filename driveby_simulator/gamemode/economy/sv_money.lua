@@ -74,3 +74,51 @@ end)
 hook.Add("PlayerDisconnected", "DBS.Economy.StopStipend", function(ply)
     timer.Remove("DBS.Stipend." .. ply:SteamID64())
 end)
+
+
+local function DropMoneyAtPlayer(ply, amount)
+    amount = math.floor(tonumber(amount) or 0)
+    if amount <= 0 then return false end
+
+    local ent = ents.Create("dbs_money_drop")
+    if not IsValid(ent) then return false end
+
+    ent:SetPos(ply:GetPos() + Vector(0, 0, 20))
+    ent:SetAmount(amount)
+    ent:Spawn()
+    return true
+end
+
+concommand.Add("dbs_dropmoney", function(ply, _, args)
+    if not IsValid(ply) then return end
+    local amt = math.floor(tonumber(args[1]) or 0)
+    if amt <= 0 then
+        DBS.Util.Notify(ply, "Usage: dbs_dropmoney <amount>")
+        return
+    end
+
+    amt = math.min(amt, ply:GetMoney())
+    if amt <= 0 then return end
+
+    if DropMoneyAtPlayer(ply, amt) then
+        ply:AddMoney(-amt)
+        DBS.Util.Notify(ply, "Dropped $" .. string.Comma(amt) .. ".")
+    end
+end)
+
+hook.Add("PlayerSay", "DBS.DropMoneyChat", function(ply, txt)
+    local msg = string.Trim(string.lower(txt or ""))
+    if not string.StartWith(msg, "!dropmoney") and not string.StartWith(msg, "/dropmoney") then return end
+    local amount = tonumber(string.match(msg, "%s+(%d+)")) or 0
+    if amount <= 0 then
+        DBS.Util.Notify(ply, "Usage: !dropmoney <amount>")
+        return ""
+    end
+
+    amount = math.min(math.floor(amount), ply:GetMoney())
+    if amount > 0 and DropMoneyAtPlayer(ply, amount) then
+        ply:AddMoney(-amount)
+        DBS.Util.Notify(ply, "Dropped $" .. string.Comma(amount) .. ".")
+    end
+    return ""
+end)

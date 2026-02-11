@@ -319,6 +319,10 @@ function ENT:Think()
             claimant:AddCred(1)
         end
 
+        local supplyReward = math.max(1, tonumber((DBS.Config.Territory and DBS.Config.Territory.SuppliesPerCapture) or 8) or 8)
+        claimant:SetNWInt("DBS_Supplies", claimant:GetNWInt("DBS_Supplies", 0) + supplyReward)
+        NotifyOne(claimant, "+" .. supplyReward .. " supplies for claiming territory.")
+
         -- =========================
         -- Notifications requested:
         -- - Unclaimed: already did global announcement on capture start

@@ -2,9 +2,14 @@ AddCSLuaFile("shared.lua")
 AddCSLuaFile("cl_init.lua")
 include("shared.lua")
 
+local function FindNearbyEntity(pos, class, radius)
+    for _, ent in ipairs(ents.FindInSphere(pos, radius or 110)) do
+        if IsValid(ent) and ent:GetClass() == class then return ent end
+    end
+end
+
 function ENT:Initialize()
-    self:SetModel("models/hunter/blocks/cube025x05x025.mdl")
-    self:SetMaterial("models/props_c17/FurnitureMetal001a")
+    self:SetModel("models/props_lab/reciever_cart.mdl")
     self:SetSolid(SOLID_VPHYSICS)
     self:PhysicsInit(SOLID_VPHYSICS)
     self:SetMoveType(MOVETYPE_VPHYSICS)
@@ -17,17 +22,17 @@ end
 function ENT:Use(activator)
     if not IsValid(activator) or not activator:IsPlayer() then return end
 
-    local dry = activator:GetNWInt("DBS_CokeDryBatch", 0)
-    if dry <= 0 then
-        DBS.Util.Notify(activator, "You need a dry batch first.")
+    local dry = FindNearbyEntity(self:GetPos(), "dbs_coke_dry", 120)
+    if not IsValid(dry) then
+        DBS.Util.Notify(activator, "Bring dried coke near the brick packer first.")
         return
     end
 
-    activator:SetNWInt("DBS_CokeDryBatch", dry - 1)
+    dry:Remove()
 
     local brick = ents.Create("dbs_coke_brick")
     if IsValid(brick) then
-        brick:SetPos(self:GetPos() + self:GetForward() * 20 + Vector(0, 0, 18))
+        brick:SetPos(self:GetPos() + self:GetForward() * 28 + Vector(0, 0, 20))
         brick:Spawn()
     end
 

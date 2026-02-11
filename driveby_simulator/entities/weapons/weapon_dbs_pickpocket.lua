@@ -31,7 +31,16 @@ local BLOCKED_NPCS = {
 
 local function GetPickTimeForPlayer(ply)
     local lvl = math.max(1, ply:GetNWInt("DBS_PickpocketSkillLevel", 1))
-    return math.Clamp(3.8 - (lvl - 1) * 0.55, 1.4, 3.8)
+    return math.Clamp(3.8 - (lvl - 1) * 0.5, 1.55, 3.8)
+end
+
+local function GetPickSuccessChance(level, isPlayerTarget)
+    local base = isPlayerTarget and 0.35 or 0.62
+    return math.Clamp(base + (level - 1) * 0.11, 0.2, 0.9)
+end
+
+local function GetStealScale(level)
+    return 0.18 + (level - 1) * 0.06
 end
 
 function SWEP:SecondaryAttack()
@@ -49,14 +58,15 @@ local function IsBlockedTarget(ent)
     return false
 end
 
-local function GetStealAmount(target)
+local function GetStealAmount(target, level)
     if target:IsPlayer() then
         local total = target:GetMoney()
         if total <= 0 then return 0 end
-        return math.Clamp(math.floor(total * 0.2), 40, 450)
+        local pct = GetStealScale(level)
+        return math.Clamp(math.floor(total * pct), 35 + level * 10, 300 + level * 120)
     end
 
-    return math.random(30, 160)
+    return math.random(20 + level * 10, 90 + level * 35)
 end
 
 if CLIENT then
@@ -139,7 +149,8 @@ function SWEP:PrimaryAttack()
             return
         end
 
-        local successChance = target:IsPlayer() and 0.45 or 0.7
+        local level = math.max(1, ply:GetNWInt("DBS_PickpocketSkillLevel", 1))
+        local successChance = GetPickSuccessChance(level, target:IsPlayer())
         local success = math.Rand(0, 1) <= successChance
 
         if not success then
@@ -151,7 +162,7 @@ function SWEP:PrimaryAttack()
             return
         end
 
-        local amount = GetStealAmount(target)
+        local amount = GetStealAmount(target, level)
         if amount <= 0 then
             DBS.Util.Notify(ply, "Target has nothing worth taking.")
             return

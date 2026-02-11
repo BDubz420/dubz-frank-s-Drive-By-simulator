@@ -6,11 +6,12 @@ TOOL.ConfigName = ""
 TOOL.ClientConVar["max"] = "10"
 TOOL.ClientConVar["interval"] = "18"
 TOOL.ClientConVar["height"] = "8"
+TOOL.ClientConVar["allowed"] = "" -- csv stock indices, empty = all
 
 if CLIENT then
     language.Add("tool.dbs_vehicle_spawns.name", "DBS Vehicle Ambient Spawns")
     language.Add("tool.dbs_vehicle_spawns.desc", "Place and tune random ambient car spawn points")
-    language.Add("tool.dbs_vehicle_spawns.0", "Left click: add spawn | Right click: remove nearest | Reload: apply max/interval")
+    language.Add("tool.dbs_vehicle_spawns.0", "Left click: add spawn | Right click: remove nearest | Reload: apply max/interval/allowed cars")
 end
 
 function TOOL:LeftClick(tr)
@@ -51,8 +52,17 @@ function TOOL:Reload()
 
     local maxCount = tonumber(self:GetClientInfo("max")) or 10
     local interval = tonumber(self:GetClientInfo("interval")) or 18
+    local allowedCsv = string.Trim(self:GetClientInfo("allowed") or "")
+    local allowed = {}
+    if allowedCsv ~= "" then
+        for token in string.gmatch(allowedCsv, "[^,]+") do
+            allowed[#allowed + 1] = tonumber(string.Trim(token)) or 0
+        end
+    end
+
     DBS.CarMarket.SetAmbientSettings(maxCount, interval)
-    DBS.Util.Notify(ply, ("Ambient settings applied: max %d, interval %.1fs"):format(maxCount, interval))
+    if DBS.CarMarket.SetAmbientAllowed then DBS.CarMarket.SetAmbientAllowed(allowed) end
+    DBS.Util.Notify(ply, ("Ambient settings applied: max %d, interval %.1fs."):format(maxCount, interval))
     return true
 end
 
@@ -75,8 +85,9 @@ if CLIENT then
 end
 
 function TOOL.BuildCPanel(panel)
-    panel:AddControl("Header", { Description = "Tune ambient car system and place spawn points." })
+    panel:AddControl("Header", { Description = "Tune ambient spawns and optionally restrict which stock car indexes are allowed to spawn." })
     panel:NumSlider("Max Ambient Cars", "dbs_vehicle_spawns_max", 0, 64, 0)
     panel:NumSlider("Spawn Interval (s)", "dbs_vehicle_spawns_interval", 8, 120, 1)
     panel:NumSlider("Height Offset", "dbs_vehicle_spawns_height", 0, 64, 0)
+    panel:TextEntry("Allowed Stock Indexes CSV (e.g. 1,2,5)", "dbs_vehicle_spawns_allowed")
 end

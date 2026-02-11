@@ -202,10 +202,15 @@ net.Receive("DBS_Eli_Open", function()
 
     PopulateSellTab()
 
-    local utilPanel = vgui.Create("DPanel", sheet)
-    utilPanel:DockPadding(10, 10, 10, 10)
-    utilPanel.Paint = nil
+    local utilPanel = vgui.Create("DScrollPanel", sheet)
     sheet:AddSheet("Utility", utilPanel, "icon16/wrench.png")
+
+    local utilBody = utilPanel:Add("DPanel")
+    utilBody:Dock(TOP)
+    utilBody:DockMargin(8, 8, 8, 8)
+    utilBody:DockPadding(10, 10, 10, 10)
+    utilBody.Paint = nil
+    utilBody:SetTall(560)
 
     local pCfg = DBS.Config.Printer or {}
     local pPrice = pCfg.Price or 3000
@@ -214,7 +219,7 @@ net.Receive("DBS_Eli_Open", function()
     local atPrinterCap = printerOwned >= printerMax
     local atCokeCap = cokeOwned >= cokeMax
 
-    local prInfo = utilPanel:Add("DLabel")
+    local prInfo = utilBody:Add("DLabel")
     prInfo:Dock(TOP)
     prInfo:SetFont("DBS_UI_Body")
     prInfo:SetTextColor(Color(220,220,220))
@@ -222,7 +227,7 @@ net.Receive("DBS_Eli_Open", function()
     prInfo:SetAutoStretchVertical(true)
     prInfo:SetText("Money Printer " .. printerOwned .. "/" .. printerMax .. "\nPrice: $" .. string.Comma(pPrice) .. "\nLow passive income. Collect by using the printer.")
 
-    local prBtn = utilPanel:Add("DButton")
+    local prBtn = utilBody:Add("DButton")
     prBtn:Dock(TOP)
     prBtn:DockMargin(0, 8, 0, 0)
     prBtn:SetTall(36)
@@ -236,7 +241,7 @@ net.Receive("DBS_Eli_Open", function()
         net.SendToServer()
     end
 
-    local cokeInfo = utilPanel:Add("DLabel")
+    local cokeInfo = utilBody:Add("DLabel")
     cokeInfo:Dock(TOP)
     cokeInfo:DockMargin(0, 14, 0, 0)
     cokeInfo:SetFont("DBS_UI_Body")
@@ -245,7 +250,7 @@ net.Receive("DBS_Eli_Open", function()
     cokeInfo:SetAutoStretchVertical(true)
     cokeInfo:SetText("Coke Processor " .. cokeOwned .. "/" .. cokeMax .. "\nPrice: $" .. string.Comma(cPrice) .. "\nLoad supplies (sprint+use), then collect wet batches.")
 
-    local cokeBtn = utilPanel:Add("DButton")
+    local cokeBtn = utilBody:Add("DButton")
     cokeBtn:Dock(TOP)
     cokeBtn:DockMargin(0, 8, 0, 0)
     cokeBtn:SetTall(36)
@@ -263,7 +268,7 @@ net.Receive("DBS_Eli_Open", function()
     local dPrice = dCfg.Price or 3000
     local atDryCap = dryOwned >= dryMax
 
-    local dryInfo = utilPanel:Add("DLabel")
+    local dryInfo = utilBody:Add("DLabel")
     dryInfo:Dock(TOP)
     dryInfo:DockMargin(0, 14, 0, 0)
     dryInfo:SetFont("DBS_UI_Body")
@@ -272,7 +277,7 @@ net.Receive("DBS_Eli_Open", function()
     dryInfo:SetAutoStretchVertical(true)
     dryInfo:SetText("Coke Drying Table " .. dryOwned .. "/" .. dryMax .. "\nPrice: $" .. string.Comma(dPrice) .. "\nDry wet batches into dry batches.")
 
-    local dryBtn = utilPanel:Add("DButton")
+    local dryBtn = utilBody:Add("DButton")
     dryBtn:Dock(TOP)
     dryBtn:DockMargin(0, 8, 0, 0)
     dryBtn:SetTall(36)
@@ -290,7 +295,7 @@ net.Receive("DBS_Eli_Open", function()
     local bPrice = bCfg.Price or 4500
     local atPackerCap = packOwned >= packMax
 
-    local packInfo = utilPanel:Add("DLabel")
+    local packInfo = utilBody:Add("DLabel")
     packInfo:Dock(TOP)
     packInfo:DockMargin(0, 14, 0, 0)
     packInfo:SetFont("DBS_UI_Body")
@@ -299,7 +304,7 @@ net.Receive("DBS_Eli_Open", function()
     packInfo:SetAutoStretchVertical(true)
     packInfo:SetText("Coke Brick Packer " .. packOwned .. "/" .. packMax .. "\nPrice: $" .. string.Comma(bPrice) .. "\nPack dry batches into coke bricks.")
 
-    local packBtn = utilPanel:Add("DButton")
+    local packBtn = utilBody:Add("DButton")
     packBtn:Dock(TOP)
     packBtn:DockMargin(0, 8, 0, 0)
     packBtn:SetTall(36)
