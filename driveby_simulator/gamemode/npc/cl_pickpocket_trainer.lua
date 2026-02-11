@@ -1,13 +1,24 @@
 if not CLIENT then return end
 
+local PICKPOCKET_FRAME
+
 net.Receive("DBS_Pickpocket_Open", function()
     local alreadyTrained = net.ReadBool()
+
+    if IsValid(PICKPOCKET_FRAME) then
+        PICKPOCKET_FRAME:MakePopup()
+        PICKPOCKET_FRAME:Center()
+        return
+    end
 
     local frame = vgui.Create("DFrame")
     frame:SetSize(440, 260)
     frame:Center()
     frame:SetTitle("")
     frame:MakePopup()
+
+    PICKPOCKET_FRAME = frame
+    frame.OnRemove = function() PICKPOCKET_FRAME = nil end
 
     frame.Paint = function(self, w, h)
         draw.RoundedBox(12, 0, 0, w, h, Color(14, 14, 18, 240))
@@ -43,6 +54,6 @@ net.Receive("DBS_Pickpocket_Open", function()
     btn.DoClick = function()
         net.Start("DBS_Pickpocket_Learn")
         net.SendToServer()
-        frame:Remove()
+        if IsValid(frame) then frame:Remove() end
     end
 end)

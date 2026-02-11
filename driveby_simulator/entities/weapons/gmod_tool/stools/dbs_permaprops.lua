@@ -6,7 +6,7 @@ TOOL.ConfigName = ""
 if CLIENT then
     language.Add("tool.dbs_permaprops.name", "DBS Perma Props")
     language.Add("tool.dbs_permaprops.desc", "Save placed entities to respawn on map start/cleanup")
-    language.Add("tool.dbs_permaprops.0", "Left click: save looked-at entity | Right click: remove nearest saved prop")
+    language.Add("tool.dbs_permaprops.0", "Left click: save looked-at entity | Right click: remove nearest saved prop and entity")
 end
 
 function TOOL:LeftClick(tr)
@@ -37,8 +37,18 @@ function TOOL:RightClick(tr)
         return false
     end
 
-    local ok = DBS.PermaProps.RemoveNear(tr.HitPos)
-    DBS.Util.Notify(ply, ok and "Removed nearest saved permaprop." or "No saved permaprop nearby.")
+    local hitPos = tr.HitPos
+    if IsValid(tr.Entity) then
+        hitPos = tr.Entity:GetPos()
+    end
+
+    local ok = DBS.PermaProps.RemoveNear(hitPos, true)
+    if IsValid(tr.Entity) and tr.Entity:GetNWBool("DBS_PermaProp", false) then
+        tr.Entity:Remove()
+        ok = true
+    end
+
+    DBS.Util.Notify(ply, ok and "Removed nearest saved permaprop and world entity." or "No saved permaprop nearby.")
     return ok
 end
 

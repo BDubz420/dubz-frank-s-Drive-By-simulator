@@ -12,37 +12,58 @@ function ENT:Initialize()
     local phys = self:GetPhysicsObject()
     if IsValid(phys) then phys:Wake() end
 
-    self:SetNWInt("DBS_CokePrinterStored", 0)
+    self:SetNWInt("DBS_CokeProcessorSupplies", 0)
+    self:SetNWInt("DBS_CokeProcessorWet", 0)
 
-    timer.Create("DBS.CokePrinter." .. self:EntIndex(), 18, 0, function()
+    local cfg = DBS.Config.CokePrinter or {}
+    local tick = math.max(6, tonumber(cfg.ProcessInterval) or 18)
+
+    timer.Create("DBS.CokeProcessor." .. self:EntIndex(), tick, 0, function()
         if not IsValid(self) then return end
 
-        if math.random() <= 0.35 then
-            self:SetNWInt("DBS_CokePrinterStored", math.min(10, self:GetNWInt("DBS_CokePrinterStored", 0) + 1))
-        end
+        local supplies = self:GetNWInt("DBS_CokeProcessorSupplies", 0)
+        if supplies <= 0 then return end
+
+        self:SetNWInt("DBS_CokeProcessorSupplies", math.max(0, supplies - 1))
+        self:SetNWInt("DBS_CokeProcessorWet", math.min(20, self:GetNWInt("DBS_CokeProcessorWet", 0) + 1))
     end)
 end
 
 function ENT:OnRemove()
-    timer.Remove("DBS.CokePrinter." .. self:EntIndex())
+    timer.Remove("DBS.CokeProcessor." .. self:EntIndex())
 end
 
 function ENT:Use(activator)
     if not IsValid(activator) or not activator:IsPlayer() then return end
 
-    local stored = self:GetNWInt("DBS_CokePrinterStored", 0)
-    if stored <= 0 then
-        DBS.Util.Notify(activator, "No coke bricks ready yet.")
+    local maxSupplies = math.max(1, tonumber((DBS.Config.CokePrinter or {}).MaxSupplies) or 20)
+    local supplies = self:GetNWInt("DBS_CokeProcessorSupplies", 0)
+
+    if activator:KeyDown(IN_SPEED) then
+        if supplies >= maxSupplies then
+            DBS.Util.Notify(activator, "Coke processor supply bay is full.")
+            return
+        end
+
+        local stash = activator:GetNWInt("DBS_Drugs", 0)
+        if stash <= 0 then
+            DBS.Util.Notify(activator, "You need drug supplies. Hold sprint + use to load 1.")
+            return
+        end
+
+        activator:SetNWInt("DBS_Drugs", stash - 1)
+        self:SetNWInt("DBS_CokeProcessorSupplies", supplies + 1)
+        DBS.Util.Notify(activator, "Loaded 1 supply into coke processor.")
         return
     end
 
-    self:SetNWInt("DBS_CokePrinterStored", stored - 1)
-
-    local brick = ents.Create("dbs_coke_brick")
-    if IsValid(brick) then
-        brick:SetPos(self:GetPos() + self:GetForward() * 22 + Vector(0, 0, 18))
-        brick:Spawn()
+    local wet = self:GetNWInt("DBS_CokeProcessorWet", 0)
+    if wet <= 0 then
+        DBS.Util.Notify(activator, "No wet coke ready yet. Hold sprint + use to add supplies.")
+        return
     end
 
-    DBS.Util.Notify(activator, "Dispensed 1 coke brick.")
+    self:SetNWInt("DBS_CokeProcessorWet", wet - 1)
+    activator:SetNWInt("DBS_CokeWetBatch", activator:GetNWInt("DBS_CokeWetBatch", 0) + 1)
+    DBS.Util.Notify(activator, "Took 1 wet coke batch. Bring it to a drying table.")
 end

@@ -51,7 +51,22 @@ local function SpawnEntry(entry)
         ent:SetColor(Color(entry.color.r, entry.color.g, entry.color.b, entry.color.a or 255))
     end
 
+    if istable(entry.special) and ent:GetClass() == "dbs_npc_eli" then
+        if ent.SetDealerTeam then ent:SetDealerTeam(tonumber(entry.special.dealerTeam) or 0) end
+        if ent.SetDealerID then ent:SetDealerID(math.max(1, tonumber(entry.special.dealerID) or 1)) end
+    end
+
     ent:SetNWBool("DBS_PermaProp", true)
+end
+
+
+local function SerializeSpecial(ent)
+    if ent:GetClass() == "dbs_npc_eli" then
+        return {
+            dealerTeam = ent.GetDealerTeam and ent:GetDealerTeam() or 0,
+            dealerID = ent.GetDealerID and ent:GetDealerID() or 1
+        }
+    end
 end
 
 function DBS.PermaProps.SaveEntity(ent)
@@ -68,7 +83,8 @@ function DBS.PermaProps.SaveEntity(ent)
         ang = { p = ang.p, y = ang.y, r = ang.r },
         skin = ent:GetSkin() or 0,
         bodygroups = SerializeBodygroups(ent),
-        color = { r = ent:GetColor().r, g = ent:GetColor().g, b = ent:GetColor().b, a = ent:GetColor().a }
+        color = { r = ent:GetColor().r, g = ent:GetColor().g, b = ent:GetColor().b, a = ent:GetColor().a },
+        special = SerializeSpecial(ent)
     }
 
     ent:SetNWBool("DBS_PermaProp", true)
@@ -76,7 +92,7 @@ function DBS.PermaProps.SaveEntity(ent)
     return true
 end
 
-function DBS.PermaProps.RemoveNear(pos)
+function DBS.PermaProps.RemoveNear(pos, removeWorldEnt)
     local best, bestDist
     for i, e in ipairs(DBS.PermaProps.List) do
         local v = Vector(e.pos.x, e.pos.y, e.pos.z)
@@ -87,8 +103,19 @@ function DBS.PermaProps.RemoveNear(pos)
     end
 
     if best and bestDist and bestDist <= (280 * 280) then
-        table.remove(DBS.PermaProps.List, best)
+        local removed = table.remove(DBS.PermaProps.List, best)
         Save()
+
+        if removeWorldEnt and removed and removed.pos then
+            local ref = Vector(removed.pos.x, removed.pos.y, removed.pos.z)
+            for _, ent in ipairs(ents.FindInSphere(ref, 96)) do
+                if IsValid(ent) and not ent:IsPlayer() and ent:GetNWBool("DBS_PermaProp", false) then
+                    ent:Remove()
+                    break
+                end
+            end
+        end
+
         return true
     end
 

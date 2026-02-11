@@ -12,11 +12,13 @@ function ENT:Draw()
     ang:RotateAroundAxis(ang:Up(), 90)
     ang:RotateAroundAxis(ang:Forward(), 90)
 
-    local stored = self:GetNWInt("DBS_CokePrinterStored", 0)
+    local wet = self:GetNWInt("DBS_CokeProcessorWet", 0)
+    local supplies = self:GetNWInt("DBS_CokeProcessorSupplies", 0)
 
     cam.Start3D2D(pos, ang, 0.08)
-        draw.RoundedBox(6, -120, -44, 240, 88, Color(16, 18, 22, 220))
-        draw.SimpleText("Coke Printer", "DermaLarge", 0, -30, Color(240, 240, 240), TEXT_ALIGN_CENTER)
-        draw.SimpleText("Bricks ready: " .. stored, "DermaDefaultBold", 0, 6, Color(220, 230, 255), TEXT_ALIGN_CENTER)
+        draw.RoundedBox(6, -130, -52, 260, 104, Color(16, 18, 22, 220))
+        draw.SimpleText("Coke Processor", "DermaLarge", 0, -32, Color(240, 240, 240), TEXT_ALIGN_CENTER)
+        draw.SimpleText("Supplies: " .. supplies, "DermaDefaultBold", 0, 0, Color(255, 230, 170), TEXT_ALIGN_CENTER)
+        draw.SimpleText("Wet batches: " .. wet, "DermaDefaultBold", 0, 20, Color(180, 220, 255), TEXT_ALIGN_CENTER)
     cam.End3D2D()
 end

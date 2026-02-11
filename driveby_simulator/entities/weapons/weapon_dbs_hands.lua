@@ -113,6 +113,9 @@ function SWEP:Think()
 
     self.DragPhys:Wake()
     self.DragPhys:SetVelocity(delta * 8)
+    if self.DragPhys.SetAngleVelocityInstantaneous then
+        self.DragPhys:SetAngleVelocityInstantaneous(Vector(0, 0, 0))
+    end
 end
 
 if CLIENT then
@@ -126,9 +129,9 @@ if CLIENT then
         bind = string.lower(bind or "")
         local delta
         if string.find(bind, "invnext", 1, true) then
-            delta = DRAG_DISTANCE_STEP
-        elseif string.find(bind, "invprev", 1, true) then
             delta = -DRAG_DISTANCE_STEP
+        elseif string.find(bind, "invprev", 1, true) then
+            delta = DRAG_DISTANCE_STEP
         end
 
         if not delta then return end

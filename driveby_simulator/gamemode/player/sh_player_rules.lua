@@ -14,7 +14,7 @@ if SERVER then
         if enabled then
             local tools = {"weapon_physgun", "weapon_physcannon", "gmod_tool", "gmod_camera", "weapon_camera"}
             for _, class in ipairs(tools) do
-                if weapons.GetStored(class) and not ply:HasWeapon(class) then
+                if not ply:HasWeapon(class) then
                     ply:Give(class)
                 end
             end

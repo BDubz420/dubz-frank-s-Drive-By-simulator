@@ -117,6 +117,20 @@ DBS.Config.Printer = {
 
 DBS.Config.CokePrinter = {
     Price = 9500,
+    MaxPerPlayer = 2,
+    SuppliesPerBatch = 1,
+    ProcessInterval = 18,
+    MaxSupplies = 20
+}
+
+DBS.Config.CokeDryingTable = {
+    Price = 3000,
+    MaxPerPlayer = 2,
+    DryTime = 20
+}
+
+DBS.Config.CokeBrickPacker = {
+    Price = 4500,
     MaxPerPlayer = 2
 }
 
@@ -265,23 +279,6 @@ DBS.Config.NPC = {
         Judge = "models/Humans/Group03/male_09.mdl",
         CarDealer = "models/Humans/Group03/male_06.mdl",
         DrugDealer = "models/Humans/Group03/male_08.mdl"
-    },
-
-    Spawns = {
-        TeamSelector = { Pos = Vector(2377, 1698, 128), Ang = Angle(0, 90, 0) },
-        PickpocketTrainer = { Pos = Vector(2465, 1735, 128), Ang = Angle(0, 180, 0) },
-        Judge = { Pos = Vector(1120, 1824, 136), Ang = Angle(0, -90, 0) },
-        CarDealer = { Pos = Vector(2405, 1602, 128), Ang = Angle(0, 90, 0) },
-        DrugDealer = { Pos = Vector(5300, -4020, 72), Ang = Angle(0, 180, 0) },
-        DrugDropboxes = {
-            { Pos = Vector(5320, -3990, 72), Ang = Angle(0, 0, 0) }
-        },
-
-        Dealers = {
-            { Team = "red", Pos = Vector(2674, -577, 80), Ang = Angle(0, 180, 0) },
-            { Team = "blue", Pos = Vector(10192, -2952, 72), Ang = Angle(0, 0, 0) },
-            { Team = "police", Pos = Vector(4161, -613, 72), Ang = Angle(0, 0, 0) }
-        }
     }
 }
 

@@ -52,6 +52,10 @@ net.Receive("DBS_Eli_Open", function()
     local printerMax = math.max(1, net.ReadUInt(8))
     local cokeOwned = net.ReadUInt(8)
     local cokeMax = math.max(1, net.ReadUInt(8))
+    local dryOwned = net.ReadUInt(8)
+    local dryMax = math.max(1, net.ReadUInt(8))
+    local packOwned = net.ReadUInt(8)
+    local packMax = math.max(1, net.ReadUInt(8))
 
     local shop = isPolice and DBS.Config.Shop.Police or DBS.Config.Shop.Gang
 
@@ -63,7 +67,7 @@ net.Receive("DBS_Eli_Open", function()
     frame:SetTitle("")
     frame:MakePopup()
 
-    PaintStyledFrame(frame, "Eli's Market", "Street gear, fast sales, no questions.")
+    PaintStyledFrame(frame, "Eli's Market", "Street gear, utilities, no questions.")
 
     ELI_FRAME = frame
 
@@ -239,19 +243,73 @@ net.Receive("DBS_Eli_Open", function()
     cokeInfo:SetTextColor(Color(220,220,220))
     cokeInfo:SetWrap(true)
     cokeInfo:SetAutoStretchVertical(true)
-    cokeInfo:SetText("Coke Printer " .. cokeOwned .. "/" .. cokeMax .. "\nPrice: $" .. string.Comma(cPrice) .. "\nOccasionally produces coke bricks.")
+    cokeInfo:SetText("Coke Processor " .. cokeOwned .. "/" .. cokeMax .. "\nPrice: $" .. string.Comma(cPrice) .. "\nLoad supplies (sprint+use), then collect wet batches.")
 
     local cokeBtn = utilPanel:Add("DButton")
     cokeBtn:Dock(TOP)
     cokeBtn:DockMargin(0, 8, 0, 0)
     cokeBtn:SetTall(36)
     cokeBtn:SetText("")
-    cokeBtn.DBS_Label = "Buy Coke Printer (" .. cokeOwned .. "/" .. cokeMax .. ")"
+    cokeBtn.DBS_Label = "Buy Coke Processor (" .. cokeOwned .. "/" .. cokeMax .. ")"
     StyleButton(cokeBtn, (money >= cPrice) and not atCokeCap)
     cokeBtn:SetEnabled((money >= cPrice) and not atCokeCap)
     cokeBtn.DoClick = function()
         if atCokeCap then return end
         net.Start("DBS_Eli_BuyCokePrinter")
+        net.SendToServer()
+    end
+
+    local dCfg = DBS.Config.CokeDryingTable or {}
+    local dPrice = dCfg.Price or 3000
+    local atDryCap = dryOwned >= dryMax
+
+    local dryInfo = utilPanel:Add("DLabel")
+    dryInfo:Dock(TOP)
+    dryInfo:DockMargin(0, 14, 0, 0)
+    dryInfo:SetFont("DBS_UI_Body")
+    dryInfo:SetTextColor(Color(220,220,220))
+    dryInfo:SetWrap(true)
+    dryInfo:SetAutoStretchVertical(true)
+    dryInfo:SetText("Coke Drying Table " .. dryOwned .. "/" .. dryMax .. "\nPrice: $" .. string.Comma(dPrice) .. "\nDry wet batches into dry batches.")
+
+    local dryBtn = utilPanel:Add("DButton")
+    dryBtn:Dock(TOP)
+    dryBtn:DockMargin(0, 8, 0, 0)
+    dryBtn:SetTall(36)
+    dryBtn:SetText("")
+    dryBtn.DBS_Label = "Buy Coke Drying Table (" .. dryOwned .. "/" .. dryMax .. ")"
+    StyleButton(dryBtn, (money >= dPrice) and not atDryCap)
+    dryBtn:SetEnabled((money >= dPrice) and not atDryCap)
+    dryBtn.DoClick = function()
+        if atDryCap then return end
+        net.Start("DBS_Eli_BuyDryingTable")
+        net.SendToServer()
+    end
+
+    local bCfg = DBS.Config.CokeBrickPacker or {}
+    local bPrice = bCfg.Price or 4500
+    local atPackerCap = packOwned >= packMax
+
+    local packInfo = utilPanel:Add("DLabel")
+    packInfo:Dock(TOP)
+    packInfo:DockMargin(0, 14, 0, 0)
+    packInfo:SetFont("DBS_UI_Body")
+    packInfo:SetTextColor(Color(220,220,220))
+    packInfo:SetWrap(true)
+    packInfo:SetAutoStretchVertical(true)
+    packInfo:SetText("Coke Brick Packer " .. packOwned .. "/" .. packMax .. "\nPrice: $" .. string.Comma(bPrice) .. "\nPack dry batches into coke bricks.")
+
+    local packBtn = utilPanel:Add("DButton")
+    packBtn:Dock(TOP)
+    packBtn:DockMargin(0, 8, 0, 0)
+    packBtn:SetTall(36)
+    packBtn:SetText("")
+    packBtn.DBS_Label = "Buy Coke Brick Packer (" .. packOwned .. "/" .. packMax .. ")"
+    StyleButton(packBtn, (money >= bPrice) and not atPackerCap)
+    packBtn:SetEnabled((money >= bPrice) and not atPackerCap)
+    packBtn.DoClick = function()
+        if atPackerCap then return end
+        net.Start("DBS_Eli_BuyBrickPacker")
         net.SendToServer()
     end
 
