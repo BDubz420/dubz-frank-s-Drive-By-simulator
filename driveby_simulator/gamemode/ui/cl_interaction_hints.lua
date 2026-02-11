@@ -23,7 +23,7 @@ hook.Add("HUDPaint", "DBS.InteractionHints", function()
         local y = ScrH() * 0.12
         draw.RoundedBox(8, x, y, w, h, Color(10, 12, 16, 205))
         draw.SimpleText("Welcome to DriveBy Simulator", "DBS_TUTORIAL", x + 16, y + 16, color_white, TEXT_ALIGN_LEFT)
-        draw.SimpleText("F1: Third-person  •  F2: Property Menu  •  R (Police + stunstick): Arrest", "DBS_HINT", x + 16, y + 44, Color(210, 210, 210), TEXT_ALIGN_LEFT)
+        draw.SimpleText("F2: Property Menu  •  R (Police + stunstick): Arrest", "DBS_HINT", x + 16, y + 44, Color(210, 210, 210), TEXT_ALIGN_LEFT)
         draw.SimpleText("Chat: !red / !blue / !police", "DBS_HINT", x + 16, y + 66, Color(180, 180, 180), TEXT_ALIGN_LEFT)
     end
 

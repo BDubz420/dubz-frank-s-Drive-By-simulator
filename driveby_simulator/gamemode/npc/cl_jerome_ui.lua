@@ -57,7 +57,7 @@ local function OpenJeromeMenu()
     hint:Dock(TOP)
     hint:SetFont("DBS_UI_Body")
     hint:SetTextColor(Color(180, 180, 180))
-    hint:SetText("Hint: F2 for property, F1 for third-person")
+    hint:SetText("Hint: Buy doors with F2 and build your base.")
     hint:SizeToContentsY()
 
     DBS_JEROME_FRAME = frame

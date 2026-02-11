@@ -13,6 +13,9 @@ end)
 hook.Add("PlayerInitialSpawn", "DBS.InitPlayerStats", function(ply)
     DBS.Player.SetCred(ply, 0)
     DBS.Player.SetMoney(ply, 250)
+    ply:SetNWBool("DBS_TrainedLockpick", false)
+    ply:SetNWBool("DBS_TrainedPickpocket", false)
+    ply:SetNWInt("DBS_PickpocketSkillLevel", 1)
 end)
 
 -- Core spawn handler
@@ -31,7 +34,9 @@ hook.Add("PlayerSpawn", "DBS.PlayerSpawn", function(ply)
     ply:Give("weapon_fists")
     ply:Give("weapon_dbs_hands")
 
-    ply:Give("weapon_dbs_lockpick")
+    if ply:GetNWBool("DBS_TrainedLockpick", false) then
+        ply:Give("weapon_dbs_lockpick")
+    end
 
     if ply:GetNWBool("DBS_HasKeys", false) and not ply:HasWeapon("weapon_dbs_keys") then
         ply:Give("weapon_dbs_keys")

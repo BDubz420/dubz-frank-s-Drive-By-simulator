@@ -3,6 +3,7 @@ if not CLIENT then return end
 local CAR_FRAME
 local STOCK = {}
 local AUCTIONS = {}
+local SAVED_CAR = {}
 
 local SELECTED_INDEX = 1
 local PREVIEW_COLOR = Color(255, 255, 255)
@@ -74,7 +75,9 @@ end
 local function ApplyPreview(modelPanel, stock, bgPanel)
     if not stock then return end
 
-    modelPanel:SetModel(stock.Model or "models/buggy.mdl")
+    local mdl = stock.Model or "models/buggy.mdl"
+    if not util.IsValidModel(mdl) then mdl = "models/buggy.mdl" end
+    modelPanel:SetModel(mdl)
     if IsValid(modelPanel.Entity) then
         modelPanel.Entity:SetColor(PREVIEW_COLOR)
         modelPanel.Entity:SetSkin(0)
@@ -157,6 +160,13 @@ local function BuildUI()
     previewBtn.DBS_Label = "Preview Selected Car"
     StyleButton(previewBtn)
 
+    local spawnSavedBtn = right:Add("DButton")
+    spawnSavedBtn:Dock(BOTTOM)
+    spawnSavedBtn:DockMargin(0, 0, 0, 6)
+    spawnSavedBtn:SetTall(32)
+    spawnSavedBtn.DBS_Label = "Spawn Saved Car"
+    StyleButton(spawnSavedBtn)
+
     local function SelectStock(index)
         SELECTED_INDEX = index
         PREVIEW_BGS = {}
@@ -176,11 +186,15 @@ local function BuildUI()
         btn:SetTall(34)
         btn.DBS_Label = (c.Name or "Car") .. " - $" .. string.Comma(c.Price or 0)
         StyleButton(btn)
-        btn.DoClick = function() SELECTED_INDEX = i end
+        btn.DoClick = function() SelectStock(i) end
     end
 
     previewBtn.DoClick = function()
         SelectStock(SELECTED_INDEX)
+    end
+
+    spawnSavedBtn.DoClick = function()
+        Send("spawn_saved")
     end
 
     buyBtn.DoClick = function()
@@ -274,6 +288,13 @@ end
 net.Receive("DBS_Car_Open", function()
     STOCK = net.ReadTable() or {}
     AUCTIONS = net.ReadTable() or {}
+    SAVED_CAR = net.ReadTable() or {}
+
+    if istable(SAVED_CAR.Color) then
+        PREVIEW_COLOR = Color(tonumber(SAVED_CAR.Color.r) or 255, tonumber(SAVED_CAR.Color.g) or 255, tonumber(SAVED_CAR.Color.b) or 255)
+        PREVIEW_BGS = SAVED_CAR.Bodygroups or {}
+    end
+
     BuildUI()
 end)
 

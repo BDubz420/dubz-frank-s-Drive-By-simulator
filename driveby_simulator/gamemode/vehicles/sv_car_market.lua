@@ -9,6 +9,19 @@ DBS.CarMarket.Auctions = DBS.CarMarket.Auctions or {}
 DBS.CarMarket.NextAuctionID = DBS.CarMarket.NextAuctionID or 1
 
 local AMBIENT_DATA_FILE = "dbs/car_spawns_" .. game.GetMap() .. ".json"
+local PLAYER_DATA_FILE = "dbs/player_cars_" .. game.GetMap() .. ".json"
+DBS.CarMarket.PlayerCars = DBS.CarMarket.PlayerCars or {}
+
+local function LoadPlayerCars()
+    if not file.Exists(PLAYER_DATA_FILE, "DATA") then DBS.CarMarket.PlayerCars = {} return end
+    local parsed = util.JSONToTable(file.Read(PLAYER_DATA_FILE, "DATA") or "")
+    DBS.CarMarket.PlayerCars = istable(parsed) and parsed or {}
+end
+
+local function SavePlayerCars()
+    if not file.IsDir("dbs", "DATA") then file.CreateDir("dbs") end
+    file.Write(PLAYER_DATA_FILE, util.TableToJSON(DBS.CarMarket.PlayerCars or {}, true))
+end
 
 local function GetAmbientConfig()
     local cfg = DBS.Config.CarsDealer or {}
@@ -263,9 +276,12 @@ local function SpawnOwnedCar(ply, stock)
 end
 
 function DBS.CarMarket.Open(ply)
+    local sid = IsValid(ply) and ply:SteamID64() or ""
+    local saved = DBS.CarMarket.PlayerCars[sid] or {}
     net.Start("DBS_Car_Open")
         net.WriteTable(DBS.Config.CarsDealer and DBS.Config.CarsDealer.Stock or {})
         net.WriteTable(DBS.CarMarket.Auctions)
+        net.WriteTable(saved)
     net.Send(ply)
 end
 
@@ -295,6 +311,7 @@ end
 
 hook.Add("InitPostEntity", "DBS.CarMarket.AmbientInit", function()
     LoadAmbientConfig()
+    LoadPlayerCars()
     timer.Simple(2, function() if DBS.CarMarket.SpawnOneAmbientCar then DBS.CarMarket.SpawnOneAmbientCar() end end)
 
     local interval = (DBS.CarMarket.AmbientCfg and DBS.CarMarket.AmbientCfg.interval) or 18
@@ -332,9 +349,23 @@ net.Receive("DBS_Car_Action", function(_, ply)
         for id, val in pairs(bodygroups) do
             ent:SetBodygroup(id, val)
         end
+        ent:SetNWString("DBS_CarClass", stock.Class or "prop_vehicle_jeep")
+        ent:SetNWString("DBS_CarModel", stock.Model or "models/buggy.mdl")
+        ent:SetNWString("DBS_CarName", stock.Name or "Car")
+
+        local sid = ply:SteamID64()
+        DBS.CarMarket.PlayerCars[sid] = {
+            Class = stock.Class or "prop_vehicle_jeep",
+            Model = stock.Model or "models/buggy.mdl",
+            Name = stock.Name or "Car",
+            Color = { r = clr.r, g = clr.g, b = clr.b },
+            Bodygroups = bodygroups
+        }
+        SavePlayerCars()
 
         ply:AddMoney(-stock.Price)
         DBS.Util.Notify(ply, "Bought " .. (stock.Name or "car") .. ".")
+        DBS.CarMarket.Open(ply)
         return
     end
 
@@ -346,7 +377,15 @@ net.Receive("DBS_Car_Action", function(_, ply)
         local g = net.ReadUInt(8)
         local b = net.ReadUInt(8)
         car:SetColor(Color(r, g, b))
+
+        local sid = ply:SteamID64()
+        if istable(DBS.CarMarket.PlayerCars[sid]) then
+            DBS.CarMarket.PlayerCars[sid].Color = { r = r, g = g, b = b }
+            SavePlayerCars()
+        end
+
         DBS.Util.Notify(ply, "Car color updated.")
+        DBS.CarMarket.Open(ply)
         return
     end
 
@@ -359,8 +398,11 @@ net.Receive("DBS_Car_Action", function(_, ply)
         local payout = math.floor(base * scale)
 
         car:Remove()
+        DBS.CarMarket.PlayerCars[ply:SteamID64()] = nil
+        SavePlayerCars()
         ply:AddMoney(payout)
         DBS.Util.Notify(ply, "Sold car to dealer for $" .. string.Comma(payout) .. ".")
+        DBS.CarMarket.Open(ply)
         return
     end
 
@@ -373,18 +415,24 @@ net.Receive("DBS_Car_Action", function(_, ply)
         local id = DBS.CarMarket.NextAuctionID
         DBS.CarMarket.NextAuctionID = id + 1
 
+        local saved = DBS.CarMarket.PlayerCars[ply:SteamID64()] or {}
         DBS.CarMarket.Auctions[id] = {
             ID = id,
             Seller = ply:SteamID64(),
             SellerName = ply:Nick(),
-            Name = car:GetNWString("DBS_CarName", "Car"),
-            Model = car:GetModel(),
+            Name = car:GetNWString("DBS_CarName", saved.Name or "Car"),
+            Class = car:GetNWString("DBS_CarClass", saved.Class or "prop_vehicle_jeep"),
+            Model = car:GetNWString("DBS_CarModel", saved.Model or car:GetModel()),
+            Color = saved.Color,
+            Bodygroups = saved.Bodygroups,
             Buyout = math.max(1, buyout),
             Bid = math.max(1, startBid),
             Bidder = ""
         }
 
         car:Remove()
+        DBS.CarMarket.PlayerCars[ply:SteamID64()] = nil
+        SavePlayerCars()
         BroadcastState()
         DBS.Util.Notify(ply, "Car listed on auction house.")
         return
@@ -399,9 +447,24 @@ net.Receive("DBS_Car_Action", function(_, ply)
         if amount <= a.Bid then DBS.Util.Notify(ply, "Bid higher.") return end
         if not ply:CanAfford(amount) then DBS.Util.Notify(ply, "Can't afford that bid.") return end
 
+        local previousBidder = a.Bidder
+        local previousBid = a.Bid
+
+        ply:AddMoney(-amount)
         a.Bid = amount
         a.Bidder = ply:SteamID64()
         a.BidderName = ply:Nick()
+
+        if previousBidder and previousBidder ~= "" and previousBidder ~= ply:SteamID64() then
+            for _, p2 in ipairs(player.GetAll()) do
+                if p2:SteamID64() == previousBidder then
+                    p2:AddMoney(previousBid)
+                    DBS.Util.Notify(p2, "Outbid on auction. Refunded $" .. string.Comma(previousBid) .. ".")
+                    break
+                end
+            end
+        end
+
         BroadcastState()
         return
     end
@@ -414,6 +477,16 @@ net.Receive("DBS_Car_Action", function(_, ply)
         if IsValid(GetOwnedCar(ply)) then DBS.Util.Notify(ply, "Sell your current car first.") return end
         if not ply:CanAfford(a.Buyout) then DBS.Util.Notify(ply, "Can't afford buyout.") return end
 
+        if a.Bidder and a.Bidder ~= "" and a.Bidder ~= ply:SteamID64() then
+            for _, p2 in ipairs(player.GetAll()) do
+                if p2:SteamID64() == a.Bidder then
+                    p2:AddMoney(a.Bid)
+                    DBS.Util.Notify(p2, "Auction ended by buyout. Refunded your bid.")
+                    break
+                end
+            end
+        end
+
         ply:AddMoney(-a.Buyout)
 
         for _, p in ipairs(player.GetAll()) do
@@ -423,11 +496,55 @@ net.Receive("DBS_Car_Action", function(_, ply)
             end
         end
 
-        local ent, err = SpawnOwnedCar(ply, { Name = a.Name, Class = "prop_vehicle_jeep", Model = a.Model or "models/buggy.mdl" })
+        local stockData = { Name = a.Name, Class = a.Class or "prop_vehicle_jeep", Model = a.Model or "models/buggy.mdl" }
+        local ent, err = SpawnOwnedCar(ply, stockData)
         if not IsValid(ent) then DBS.Util.Notify(ply, err or "Buyout failed to spawn car.") end
+
+        if IsValid(ent) then
+            local c = a.Color or { r = 255, g = 255, b = 255 }
+            ent:SetColor(Color(tonumber(c.r) or 255, tonumber(c.g) or 255, tonumber(c.b) or 255))
+            for bg, val in pairs(a.Bodygroups or {}) do
+                ent:SetBodygroup(tonumber(bg) or 0, tonumber(val) or 0)
+            end
+            ent:SetNWString("DBS_CarClass", stockData.Class)
+            ent:SetNWString("DBS_CarModel", stockData.Model)
+            ent:SetNWString("DBS_CarName", stockData.Name)
+
+            DBS.CarMarket.PlayerCars[ply:SteamID64()] = {
+                Class = stockData.Class,
+                Model = stockData.Model,
+                Name = stockData.Name,
+                Color = a.Color,
+                Bodygroups = a.Bodygroups
+            }
+            SavePlayerCars()
+        end
 
         DBS.CarMarket.Auctions[id] = nil
         BroadcastState()
+        DBS.CarMarket.Open(ply)
+        return
+    end
+
+
+    if action == "spawn_saved" then
+        if IsValid(GetOwnedCar(ply)) then DBS.Util.Notify(ply, "Sell your current car first.") return end
+        local saved = DBS.CarMarket.PlayerCars[ply:SteamID64()]
+        if not istable(saved) then DBS.Util.Notify(ply, "No saved car profile.") return end
+
+        local ent, err = SpawnOwnedCar(ply, saved)
+        if not IsValid(ent) then DBS.Util.Notify(ply, err or "Failed to spawn saved car.") return end
+
+        local c = saved.Color or { r = 255, g = 255, b = 255 }
+        ent:SetColor(Color(tonumber(c.r) or 255, tonumber(c.g) or 255, tonumber(c.b) or 255))
+        for bg, val in pairs(saved.Bodygroups or {}) do
+            ent:SetBodygroup(tonumber(bg) or 0, tonumber(val) or 0)
+        end
+        ent:SetNWString("DBS_CarClass", saved.Class or "prop_vehicle_jeep")
+        ent:SetNWString("DBS_CarModel", saved.Model or "models/buggy.mdl")
+        ent:SetNWString("DBS_CarName", saved.Name or "Car")
+
+        DBS.Util.Notify(ply, "Spawned your saved car setup.")
         return
     end
 

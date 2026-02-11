@@ -134,6 +134,8 @@ DBS.Config.CokeBrickPacker = {
     MaxPerPlayer = 2
 }
 
+DBS.Config.LockpickTrainingCost = 250
+
 DBS.Config.Drugs = {
     PayoutPerUnit = 90,
     MeetDuration = 180,

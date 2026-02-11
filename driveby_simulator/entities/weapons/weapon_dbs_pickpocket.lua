@@ -21,7 +21,6 @@ SWEP.Secondary.Automatic = false
 SWEP.Secondary.Ammo = "none"
 
 local PICK_RANGE = 90
-local PICK_TIME = 2.2
 local BLOCKED_NPCS = {
     ["dbs_npc_eli"] = true,
     ["dbs_npc_jerome"] = true,
@@ -29,6 +28,11 @@ local BLOCKED_NPCS = {
     ["dbs_npc_judge"] = true,
     ["dbs_npc_lockpick_trainer"] = true
 }
+
+local function GetPickTimeForPlayer(ply)
+    local lvl = math.max(1, ply:GetNWInt("DBS_PickpocketSkillLevel", 1))
+    return math.Clamp(3.8 - (lvl - 1) * 0.55, 1.4, 3.8)
+end
 
 function SWEP:SecondaryAttack()
     return
@@ -83,6 +87,7 @@ function SWEP:PrimaryAttack()
     local ply = self:GetOwner()
     if not IsValid(ply) then return end
 
+    local pickTime = GetPickTimeForPlayer(ply)
     self:SetNextPrimaryFire(CurTime() + 1.2)
 
     if ply:GetNWFloat("DBS_NextPickPocket", 0) > CurTime() then
@@ -115,11 +120,11 @@ function SWEP:PrimaryAttack()
     end
 
     ply:SetNWFloat("DBS_PickpocketStart", CurTime())
-    ply:SetNWFloat("DBS_PickpocketEnd", CurTime() + PICK_TIME)
+    ply:SetNWFloat("DBS_PickpocketEnd", CurTime() + pickTime)
 
-    ply:SetNWFloat("DBS_NextPickPocket", CurTime() + PICK_TIME + 1.8)
+    ply:SetNWFloat("DBS_NextPickPocket", CurTime() + pickTime + 1.8)
 
-    timer.Simple(PICK_TIME, function()
+    timer.Simple(pickTime, function()
         if not IsValid(ply) then return end
 
         ply:SetNWFloat("DBS_PickpocketEnd", 0)
@@ -154,6 +159,10 @@ function SWEP:PrimaryAttack()
 
         if target:IsPlayer() then
             amount = math.min(amount, target:GetMoney())
+            if amount <= 0 then
+                DBS.Util.Notify(ply, "Target has nothing worth taking.")
+                return
+            end
             target:AddMoney(-amount)
         end
 

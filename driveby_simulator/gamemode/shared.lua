@@ -41,6 +41,7 @@ DBS.Util.IncludeClient("ui/cl_thirdperson.lua")
 DBS.Util.IncludeClient("ui/cl_interaction_hints.lua")
 DBS.Util.IncludeClient("ui/cl_damage_effects.lua")
 DBS.Util.IncludeClient("ui/cl_deathscreen.lua")
+DBS.Util.IncludeClient("ui/cl_motd.lua")
 DBS.Util.IncludeClient("admin/cl_dadmin.lua")
 
 AddCSLuaFile("player/sh_player_rules.lua")

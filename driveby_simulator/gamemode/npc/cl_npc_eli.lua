@@ -75,7 +75,7 @@ net.Receive("DBS_Eli_Open", function()
     hint:SetPos(14, 60)
     hint:SetFont("DBS_UI_Body")
     hint:SetTextColor(Color(180, 180, 180))
-    hint:SetText("Hint: F2 manages properties • F1 toggles camera")
+    hint:SetText("Hint: F2 manages properties")
     hint:SizeToContents()
 
     local sheet = vgui.Create("DPropertySheet", frame)

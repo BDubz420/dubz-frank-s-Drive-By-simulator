@@ -76,6 +76,8 @@ function DBS.Doors.SetOwner(door, ownerTeam, shouldPersist, protected)
 
     door:SetRenderMode(RENDERMODE_NORMAL)
 
+    hook.Run("DBS.Doors.OwnerChanged", door, ownerTeam)
+
     if shouldPersist then
         local id = DBS.Doors.GetDoorID(door)
         if id then
