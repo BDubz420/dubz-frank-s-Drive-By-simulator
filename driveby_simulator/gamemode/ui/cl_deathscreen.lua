@@ -22,10 +22,10 @@ hook.Add("HUDPaint", "DBS.DeathScreen", function()
 
     local alpha = math.Clamp((CurTime() - deathAt) * 180, 0, 220)
 
-    draw.RoundedBox(0, 0, 0, ScrW(), ScrH(), Color(20, 0, 0, alpha))
+    draw.RoundedBox(0, 0, 0, ScrW(), ScrH(), Color(0, 0, 0, math.min(165, alpha)))
 
-    local title = (deathMode == "suicide") and "You Died" or "You Were Killed"
-    local body = (deathMode == "suicide") and "Cause: Suicide" or ("Killed by: " .. deathBy)
+    local title = "YOU GOT DROPPED!"
+    local body = (deathMode == "suicide") and "Cause: Yourself" or ("Dropped by: " .. deathBy)
 
     draw.SimpleText(title, "DBS_DEATH_Title", ScrW() * 0.5, ScrH() * 0.42, Color(240, 220, 220), TEXT_ALIGN_CENTER)
     draw.SimpleText(body, "DBS_DEATH_Body", ScrW() * 0.5, ScrH() * 0.48, Color(220, 200, 200), TEXT_ALIGN_CENTER)

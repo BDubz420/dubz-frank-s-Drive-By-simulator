@@ -66,14 +66,12 @@ hook.Add("HUDPaint", "DBS_TerritoryCaptureHUD", function()
     local endTime = activePole:GetCaptureEndsAt()
     if endTime <= 0 then return end
 
-    local capMin = (DBS.Config.Territory and DBS.Config.Territory.CaptureTimeMin) or 60
-    local capMax = (DBS.Config.Territory and DBS.Config.Territory.CaptureTimeMax) or capMin
-    local total = math.max(1, capMax)
-    local start = endTime - total
+    local start = activePole:GetNWFloat("DBS_CaptureStart", 0)
+    local total = math.max(1, endTime - start)
     local frac = math.Clamp((CurTime() - start) / total, 0, 1)
     local remaining = math.max(0, math.ceil(endTime - CurTime()))
 
-    local w, h = 500, 74
+    local w, h = 560, 92
     local x = (ScrW() - w) * 0.5
     local y = 28
 
@@ -83,8 +81,9 @@ hook.Add("HUDPaint", "DBS_TerritoryCaptureHUD", function()
     draw.RoundedBox(12, x + 10, y + 10, 8, h - 20, accent)
 
     draw.SimpleText("CAPTURING TERRITORY", "DBS_TERR_Title", x + 28, y + 20, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-    draw.SimpleText("Hold the block... " .. remaining .. "s", "DBS_TERR_Body", x + 28, y + 44, Color(190, 190, 190), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+    draw.SimpleText("Progress: " .. math.floor(frac * 100) .. "%  |  " .. remaining .. "s", "DBS_TERR_Body", x + 28, y + 44, Color(190, 190, 190), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+    draw.SimpleText("Hold ring for bonus payout. Team also gets split income.", "DBS_TERR_Body", x + 28, y + 62, Color(165, 200, 165), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 
-    draw.RoundedBox(6, x + 250, y + 40, 230, 14, Color(40, 40, 40, 180))
-    draw.RoundedBox(6, x + 252, y + 42, 226 * frac, 10, accent)
+    draw.RoundedBox(6, x + 300, y + 40, 240, 14, Color(40, 40, 40, 180))
+    draw.RoundedBox(6, x + 302, y + 42, 236 * frac, 10, accent)
 end)

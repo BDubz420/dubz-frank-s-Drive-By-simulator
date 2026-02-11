@@ -94,6 +94,7 @@ function ENT:Initialize()
 
     self:SetCapturingTeam(0)
     self:SetCaptureEndsAt(0)
+            self:SetNWFloat("DBS_CaptureStart", 0)
 
     self.NoMoneyBlock = {}
 
@@ -184,6 +185,7 @@ function ENT:Think()
             local captureTime = math.Rand(capMin, math.max(capMin, capMax))
             self:SetCapturingTeam(capturer:Team())
             self:SetCaptureEndsAt(now + captureTime)
+            self:SetNWFloat("DBS_CaptureStart", now)
 
             -- Universal world announcement ONLY for unclaimed territories
             net.Start(DBS.Net.Notify)
@@ -209,6 +211,7 @@ function ENT:Think()
         if not stillHere then
             self:SetCapturingTeam(0)
             self:SetCaptureEndsAt(0)
+            self:SetNWFloat("DBS_CaptureStart", 0)
         end
     end
 
@@ -267,6 +270,7 @@ function ENT:Think()
             -- Nobody there at the final moment -> cancel
             self:SetCapturingTeam(0)
             self:SetCaptureEndsAt(0)
+            self:SetNWFloat("DBS_CaptureStart", 0)
             self:NextThink(now + 1)
             return true
         end
@@ -278,6 +282,7 @@ function ENT:Think()
         if DBS.Config.TerritoryPole.CaptureCancelOnEnemy and HasEnemyInRadius(self, capTeam) then
             self:SetCapturingTeam(0)
             self:SetCaptureEndsAt(0)
+            self:SetNWFloat("DBS_CaptureStart", 0)
             self:NextThink(now + 1)
             return true
         end
@@ -292,6 +297,7 @@ function ENT:Think()
             claimant:SetNWInt("DBS_TerritoryNoMoneyCost", cost)
             self:SetCapturingTeam(0)
             self:SetCaptureEndsAt(0)
+            self:SetNWFloat("DBS_CaptureStart", 0)
             self:NextThink(now + 1)
             return true
         end
@@ -301,6 +307,7 @@ function ENT:Think()
         -- Apply ownership
         self:SetCapturingTeam(0)
         self:SetCaptureEndsAt(0)
+        self:SetNWFloat("DBS_CaptureStart", 0)
         self:SetOwnerTeam(capTeam)
         self:SetState(DBS.Const.TerritoryState.OWNED)
         self:SetDecayEndsAt(now + (DBS.Config.Territory.DecayTime or 300))
@@ -345,25 +352,68 @@ function ENT:Think()
 end
 
 
+
 if SERVER then
+    local function GetPlayersInTerritoryRing(pole, teamID)
+        local list = {}
+        local radius = (DBS.Config and DBS.Config.TerritoryPole and DBS.Config.TerritoryPole.Radius) or 300
+        local radiusSqr = radius * radius
+
+        for _, ply in ipairs(player.GetAll()) do
+            if not IsValid(ply) or not ply:Alive() then continue end
+            if ply:Team() ~= teamID then continue end
+            if ply:GetPos():DistToSqr(pole:GetPos()) > radiusSqr then continue end
+            list[#list + 1] = ply
+        end
+
+        return list
+    end
+
     timer.Create("DBS.TerritoryPassiveIncome", 45, 0, function()
         local poles = ents.FindByClass("dbs_territory_pole")
         if #poles == 0 then return end
 
-        local counts = {}
+        local teamPool = {}
+        local holderBonus = {}
+
+        local basePerPole = 80
+        local ringBonus = 60
+
         for _, pole in ipairs(poles) do
             local owner = pole:GetOwnerTeam()
-            if owner and owner ~= 0 then
-                counts[owner] = (counts[owner] or 0) + 1
+            if not owner or owner == 0 then continue end
+
+            teamPool[owner] = (teamPool[owner] or 0) + basePerPole
+
+            local inRing = GetPlayersInTerritoryRing(pole, owner)
+            if #inRing > 0 then
+                local holder = table.Random(inRing)
+                if IsValid(holder) then
+                    holderBonus[holder] = (holderBonus[holder] or 0) + ringBonus
+                end
             end
         end
 
-        for _, ply in ipairs(player.GetAll()) do
-            local owned = counts[ply:Team()] or 0
-            if owned > 0 then
-                local payout = owned * 60
-                ply:AddMoney(payout)
-                DBS.Util.Notify(ply, "Territory income: $" .. string.Comma(payout) .. " (" .. owned .. " owned)")
+        for teamID, pool in pairs(teamPool) do
+            local members = {}
+            for _, ply in ipairs(player.GetAll()) do
+                if IsValid(ply) and ply:Alive() and ply:Team() == teamID then
+                    members[#members + 1] = ply
+                end
+            end
+
+            if #members > 0 and pool > 0 then
+                local split = math.max(1, math.floor(pool / #members))
+                for _, ply in ipairs(members) do
+                    ply:AddMoney(split)
+                    local msg = "Territory share: $" .. string.Comma(split)
+                    if holderBonus[ply] then
+                        ply:AddMoney(holderBonus[ply])
+                        msg = msg .. " + ring bonus $" .. string.Comma(holderBonus[ply])
+                    end
+                    DBS.Util.Notify(ply, msg .. ".")
+                    DBS.Util.Notify(ply, "Tip: stand in your territory ring at payout for bonus cash.")
+                end
             end
         end
     end)

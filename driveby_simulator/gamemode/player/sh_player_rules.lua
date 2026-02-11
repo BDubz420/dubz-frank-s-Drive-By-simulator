@@ -3,12 +3,28 @@ DBS.PlayerRules = DBS.PlayerRules or {}
 
 -- Slower, heavier movement for realism
 DBS.PlayerRules.WalkSpeed     = 95
-DBS.PlayerRules.RunSpeed      = 104
+DBS.PlayerRules.RunSpeed      = 98
 DBS.PlayerRules.SlowWalkSpeed = 70
 DBS.PlayerRules.CrouchSpeed   = 0.18
 DBS.PlayerRules.JumpPower     = 155
 
 if SERVER then
+    local function ApplySandboxLoadout(ply, enabled)
+        if not IsValid(ply) then return end
+        if enabled then
+            local tools = {"weapon_physgun", "weapon_physcannon", "gmod_tool", "gmod_camera", "weapon_camera"}
+            for _, class in ipairs(tools) do
+                if weapons.GetStored(class) and not ply:HasWeapon(class) then
+                    ply:Give(class)
+                end
+            end
+        else
+            local strip = {"weapon_physgun", "weapon_physcannon", "gmod_tool", "gmod_camera", "weapon_camera"}
+            for _, class in ipairs(strip) do
+                if ply:HasWeapon(class) then ply:StripWeapon(class) end
+            end
+        end
+    end
     hook.Add("PlayerSpawn", "DBS.ApplyPlayerMovement", function(ply)
         if not IsValid(ply) then return end
         ply:SetWalkSpeed(DBS.PlayerRules.WalkSpeed)
@@ -16,6 +32,7 @@ if SERVER then
         ply:SetSlowWalkSpeed(DBS.PlayerRules.SlowWalkSpeed)
         ply:SetCrouchedWalkSpeed(DBS.PlayerRules.CrouchSpeed)
         ply:SetJumpPower(DBS.PlayerRules.JumpPower)
+        ApplySandboxLoadout(ply, ply:GetNWBool("DBS_SandboxMode", false))
     end)
 
     hook.Add("PlayerNoClip", "DBS.NoClipControl", function(ply)
@@ -29,6 +46,7 @@ if SERVER then
 
         local newState = not ply:GetNWBool("DBS_SandboxMode", false)
         ply:SetNWBool("DBS_SandboxMode", newState)
+        ApplySandboxLoadout(ply, newState)
         DBS.Util.Notify(ply, "Sandbox mode " .. (newState and "enabled" or "disabled") .. ".")
         return ""
     end)

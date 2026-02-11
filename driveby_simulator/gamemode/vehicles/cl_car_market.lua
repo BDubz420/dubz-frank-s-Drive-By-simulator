@@ -50,8 +50,7 @@ local function BuildBodygroupSliders(parent, modelPanel, stock)
     local ent = modelPanel.Entity
     local bgCount = ent:GetNumBodyGroups() or 0
     for i = 0, bgCount - 1 do
-        local bgInfo = ent:GetBodygroup(i)
-        local num = bgInfo and bgInfo.num or 1
+        local num = ent:GetBodygroupCount(i) or 1
         if num <= 1 then continue end
 
         local slider = parent:Add("DNumSlider")
@@ -151,6 +150,13 @@ local function BuildUI()
     buyBtn.DBS_Label = "Buy Previewed Car"
     StyleButton(buyBtn)
 
+    local previewBtn = right:Add("DButton")
+    previewBtn:Dock(BOTTOM)
+    previewBtn:DockMargin(0, 0, 0, 6)
+    previewBtn:SetTall(32)
+    previewBtn.DBS_Label = "Preview Selected Car"
+    StyleButton(previewBtn)
+
     local function SelectStock(index)
         SELECTED_INDEX = index
         PREVIEW_BGS = {}
@@ -170,7 +176,11 @@ local function BuildUI()
         btn:SetTall(34)
         btn.DBS_Label = (c.Name or "Car") .. " - $" .. string.Comma(c.Price or 0)
         StyleButton(btn)
-        btn.DoClick = function() SelectStock(i) end
+        btn.DoClick = function() SELECTED_INDEX = i end
+    end
+
+    previewBtn.DoClick = function()
+        SelectStock(SELECTED_INDEX)
     end
 
     buyBtn.DoClick = function()

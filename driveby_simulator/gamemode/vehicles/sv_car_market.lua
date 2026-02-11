@@ -8,6 +8,166 @@ util.AddNetworkString("DBS_Car_Update")
 DBS.CarMarket.Auctions = DBS.CarMarket.Auctions or {}
 DBS.CarMarket.NextAuctionID = DBS.CarMarket.NextAuctionID or 1
 
+local AMBIENT_DATA_FILE = "dbs/car_spawns_" .. game.GetMap() .. ".json"
+
+local function GetAmbientConfig()
+    local cfg = DBS.Config.CarsDealer or {}
+    return {
+        max = math.max(0, tonumber(cfg.AmbientMax) or 10),
+        interval = math.max(8, tonumber(cfg.AmbientInterval) or 18),
+        points = table.Copy(cfg.SpawnPositions or {})
+    }
+end
+
+local function EncodeVec(vec)
+    if isvector(vec) then
+        return { x = vec.x, y = vec.y, z = vec.z }
+    end
+
+    return { x = 0, y = 0, z = 0 }
+end
+
+local function EncodeAng(ang)
+    if isangle(ang) then
+        return { p = ang.p, y = ang.y, r = ang.r }
+    end
+
+    return { p = 0, y = 0, r = 0 }
+end
+
+local function DecodeVec(raw)
+    if isvector(raw) then return raw end
+    if not istable(raw) then return nil end
+
+    local x = tonumber(raw.x)
+    local y = tonumber(raw.y)
+    local z = tonumber(raw.z)
+    if not x or not y or not z then return nil end
+
+    return Vector(x, y, z)
+end
+
+local function DecodeAng(raw)
+    if isangle(raw) then return raw end
+    if not istable(raw) then return Angle(0, 0, 0) end
+
+    return Angle(tonumber(raw.p) or 0, tonumber(raw.y) or 0, tonumber(raw.r) or 0)
+end
+
+local function NormalizeSpawnPoint(spot)
+    if not istable(spot) then return nil end
+
+    local pos = DecodeVec(spot.Pos or spot.pos)
+    if not pos then return nil end
+
+    return {
+        Pos = pos,
+        Ang = DecodeAng(spot.Ang or spot.ang)
+    }
+end
+
+local function NormalizeSpawnPoints(points)
+    local normalized = {}
+    for _, spot in ipairs(points or {}) do
+        local parsed = NormalizeSpawnPoint(spot)
+        if parsed then
+            normalized[#normalized + 1] = parsed
+        end
+    end
+
+    return normalized
+end
+
+local function SerializeSpawnPoints(points)
+    local saved = {}
+    for _, spot in ipairs(points or {}) do
+        local parsed = NormalizeSpawnPoint(spot)
+        if parsed then
+            saved[#saved + 1] = {
+                pos = EncodeVec(parsed.Pos),
+                ang = EncodeAng(parsed.Ang)
+            }
+        end
+    end
+
+    return saved
+end
+
+local function SaveAmbientConfig(data)
+    local payload = {
+        max = math.max(0, tonumber(data and data.max) or 0),
+        interval = math.max(8, tonumber(data and data.interval) or 18),
+        points = SerializeSpawnPoints(data and data.points or {})
+    }
+
+    if not file.IsDir("dbs", "DATA") then file.CreateDir("dbs") end
+    file.Write(AMBIENT_DATA_FILE, util.TableToJSON(payload, true))
+end
+
+local function LoadAmbientConfig()
+    local base = GetAmbientConfig()
+    if not file.Exists(AMBIENT_DATA_FILE, "DATA") then
+        DBS.CarMarket.AmbientCfg = base
+        return
+    end
+
+    local parsed = util.JSONToTable(file.Read(AMBIENT_DATA_FILE, "DATA") or "")
+    if not istable(parsed) then
+        DBS.CarMarket.AmbientCfg = base
+        return
+    end
+
+    base.max = math.max(0, tonumber(parsed.max) or base.max)
+    base.interval = math.max(8, tonumber(parsed.interval) or base.interval)
+    if istable(parsed.points) then base.points = NormalizeSpawnPoints(parsed.points) end
+
+    DBS.CarMarket.AmbientCfg = base
+end
+
+function DBS.CarMarket.AddAmbientSpawn(pos, ang)
+    LoadAmbientConfig()
+    local cfg = DBS.CarMarket.AmbientCfg
+    cfg.points = cfg.points or {}
+    cfg.points[#cfg.points + 1] = {
+        Pos = isvector(pos) and pos or Vector(0, 0, 0),
+        Ang = isangle(ang) and ang or Angle(0, 0, 0)
+    }
+    SaveAmbientConfig(cfg)
+end
+
+function DBS.CarMarket.RemoveNearestAmbientSpawn(pos)
+    LoadAmbientConfig()
+    local cfg = DBS.CarMarket.AmbientCfg
+    local best, bestDist
+    for i, spot in ipairs(cfg.points or {}) do
+        local d = pos:DistToSqr(spot.Pos)
+        if not bestDist or d < bestDist then
+            best = i
+            bestDist = d
+        end
+    end
+
+    if best and bestDist and bestDist <= (280 * 280) then
+        table.remove(cfg.points, best)
+        SaveAmbientConfig(cfg)
+        return true
+    end
+
+    return false
+end
+
+function DBS.CarMarket.SetAmbientSettings(maxCount, interval)
+    LoadAmbientConfig()
+    DBS.CarMarket.AmbientCfg.max = math.max(0, tonumber(maxCount) or DBS.CarMarket.AmbientCfg.max)
+    DBS.CarMarket.AmbientCfg.interval = math.max(8, tonumber(interval) or DBS.CarMarket.AmbientCfg.interval)
+    SaveAmbientConfig(DBS.CarMarket.AmbientCfg)
+
+    timer.Remove("DBS.CarMarket.AmbientRefresh")
+    timer.Create("DBS.CarMarket.AmbientRefresh", DBS.CarMarket.AmbientCfg.interval, 0, function()
+        if DBS.CarMarket.SpawnOneAmbientCar then DBS.CarMarket.SpawnOneAmbientCar() end
+    end)
+end
+
 local function BroadcastState(target)
     net.Start("DBS_Car_Update")
         net.WriteTable(DBS.CarMarket.Auctions)
@@ -15,6 +175,9 @@ local function BroadcastState(target)
 end
 
 local function GetSpawnList()
+    if DBS.CarMarket and DBS.CarMarket.AmbientCfg and istable(DBS.CarMarket.AmbientCfg.points) and #DBS.CarMarket.AmbientCfg.points > 0 then
+        return DBS.CarMarket.AmbientCfg.points
+    end
     return (DBS.Config.CarsDealer and DBS.Config.CarsDealer.SpawnPositions) or {}
 end
 
@@ -106,11 +269,13 @@ function DBS.CarMarket.Open(ply)
     net.Send(ply)
 end
 
-local function SpawnAmbientCars()
+function DBS.CarMarket.SpawnOneAmbientCar()
     local cfg = DBS.Config.CarsDealer or {}
     if not cfg.Stock or #cfg.Stock == 0 then return end
 
-    local maxAmbient = cfg.AmbientMax or 8
+    LoadAmbientConfig()
+
+    local maxAmbient = (DBS.CarMarket.AmbientCfg and DBS.CarMarket.AmbientCfg.max) or (cfg.AmbientMax or 10)
     local current = 0
     for _, ent in ipairs(ents.GetAll()) do
         if ent:GetNWBool("DBS_AmbientCar", false) then
@@ -118,20 +283,24 @@ local function SpawnAmbientCars()
         end
     end
 
-    local needed = math.max(0, maxAmbient - current)
-    for _ = 1, needed do
-        local stock = table.Random(cfg.Stock)
-        local ent = SpawnCar(NULL, stock, false)
-        if IsValid(ent) then
-            ent:SetNWBool("DBS_AmbientCar", true)
-            ent:SetColor(Color(180, 180, 180))
-        end
+    if current >= maxAmbient then return end
+
+    local stock = table.Random(cfg.Stock)
+    local ent = SpawnCar(NULL, stock, false)
+    if IsValid(ent) then
+        ent:SetNWBool("DBS_AmbientCar", true)
+        ent:SetColor(Color(180, 180, 180))
     end
 end
 
 hook.Add("InitPostEntity", "DBS.CarMarket.AmbientInit", function()
-    timer.Simple(2, SpawnAmbientCars)
-    timer.Create("DBS.CarMarket.AmbientRefresh", 45, 0, SpawnAmbientCars)
+    LoadAmbientConfig()
+    timer.Simple(2, function() if DBS.CarMarket.SpawnOneAmbientCar then DBS.CarMarket.SpawnOneAmbientCar() end end)
+
+    local interval = (DBS.CarMarket.AmbientCfg and DBS.CarMarket.AmbientCfg.interval) or 18
+    timer.Create("DBS.CarMarket.AmbientRefresh", interval, 0, function()
+        if DBS.CarMarket.SpawnOneAmbientCar then DBS.CarMarket.SpawnOneAmbientCar() end
+    end)
 end)
 
 net.Receive("DBS_Car_Action", function(_, ply)

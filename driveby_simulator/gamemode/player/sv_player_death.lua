@@ -8,7 +8,9 @@ local RESPAWN_DELAY = 10
 hook.Add("PlayerDeath", "DBS.PlayerDeathCore", function(victim, inflictor, attacker)
     if not IsValid(victim) then return end
 
-    DBS.Player.DropAllVulnerable(victim)
+    if DBS.Player and DBS.Player.DropAllVulnerable then DBS.Player.DropAllVulnerable(victim) end
+    DBS.Player.SetCred(victim, 0)
+    victim:SetNWInt("DBS_Kills", 0)
 
     local killerName = "Unknown"
     local mode = "killed"

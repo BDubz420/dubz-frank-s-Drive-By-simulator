@@ -44,8 +44,8 @@ DBS.Config.Cars = {
 DBS.Config.Territory = {
     CaptureCost = 5000,
 
-    CaptureTimeMin = 60,
-    CaptureTimeMax = 180,
+    CaptureTimeMin = 25,
+    CaptureTimeMax = 55,
 
     DecayTime = 300, -- 5 minutes
 
