@@ -63,17 +63,16 @@ net.Receive("DBS_Eli_Open", function()
 
     ELI_FRAME = frame
 
-    local sheet = vgui.Create("DPropertySheet", frame)
-    sheet:Dock(FILL)
-    sheet:DockMargin(10, 82, 10, 10)
-
     local hint = frame:Add("DLabel")
-    hint:Dock(TOP)
-    hint:SetTall(20)
-    hint:DockMargin(14, 60, 14, 0)
+    hint:SetPos(14, 60)
     hint:SetFont("DBS_UI_Body")
     hint:SetTextColor(Color(180, 180, 180))
     hint:SetText("Hint: F2 manages properties • F1 toggles camera")
+    hint:SizeToContents()
+
+    local sheet = vgui.Create("DPropertySheet", frame)
+    sheet:Dock(FILL)
+    sheet:DockMargin(10, 76, 10, 10)
 
     -- BUY TAB
     local buyPanel = vgui.Create("DScrollPanel", sheet)
@@ -87,9 +86,10 @@ net.Receive("DBS_Eli_Open", function()
         header:SetFont("DBS_UI_Title")
         header:SetText(tierData.Name .. (cred < tier and " (LOCKED)" or ""))
         header:Dock(TOP)
-        header:DockMargin(4, tier == 0 and 4 or 16, 4, 8)
+        header:DockMargin(4, tier == 0 and 2 or 14, 4, 6)
+        header:SetTall(24)
+        header:SetContentAlignment(4)
         header:SetTextColor(cred < tier and Color(150, 150, 150) or color_white)
-        header:SizeToContents()
 
         for _, item in ipairs(tierData.Items) do
             local canAfford = money >= item.Price

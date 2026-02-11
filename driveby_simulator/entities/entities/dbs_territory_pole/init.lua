@@ -170,6 +170,17 @@ function ENT:Think()
         end
 
         if IsValid(capturer) then
+            local cost = DBS.Config.Territory.CaptureCost or 5000
+            if not capturer:CanAfford(cost) then
+                NotifyOne(capturer, ("You need $%s to start claiming this territory."):format(string.Comma(cost)))
+                self.NoMoneyBlock = self.NoMoneyBlock or {}
+                self.NoMoneyBlock[capturer:SteamID64()] = true
+                capturer:SetNWFloat("DBS_TerritoryNoMoneyUntil", CurTime() + 4)
+                capturer:SetNWInt("DBS_TerritoryNoMoneyCost", cost)
+                self:NextThink(now + 1)
+                return true
+            end
+
             local captureTime = math.Rand(capMin, math.max(capMin, capMax))
             self:SetCapturingTeam(capturer:Team())
             self:SetCaptureEndsAt(now + captureTime)

@@ -1,11 +1,12 @@
 DBS = DBS or {}
 DBS.PlayerRules = DBS.PlayerRules or {}
 
-DBS.PlayerRules.WalkSpeed     = 120
-DBS.PlayerRules.RunSpeed      = 160
-DBS.PlayerRules.SlowWalkSpeed = 90
-DBS.PlayerRules.CrouchSpeed   = 0.2
-DBS.PlayerRules.JumpPower     = 170
+-- Slower, heavier movement for realism
+DBS.PlayerRules.WalkSpeed     = 95
+DBS.PlayerRules.RunSpeed      = 135
+DBS.PlayerRules.SlowWalkSpeed = 70
+DBS.PlayerRules.CrouchSpeed   = 0.18
+DBS.PlayerRules.JumpPower     = 155
 
 if SERVER then
     hook.Add("PlayerSpawn", "DBS.ApplyPlayerMovement", function(ply)

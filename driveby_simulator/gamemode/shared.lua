@@ -39,6 +39,7 @@ DBS.Util.IncludeClient("territories/cl_territory_render.lua")
 DBS.Util.IncludeClient("ui/sh_player_hud.lua")
 DBS.Util.IncludeClient("ui/cl_thirdperson.lua")
 DBS.Util.IncludeClient("ui/cl_interaction_hints.lua")
+DBS.Util.IncludeClient("ui/cl_damage_effects.lua")
 DBS.Util.IncludeClient("ui/cl_deathscreen.lua")
 DBS.Util.IncludeClient("admin/cl_dadmin.lua")
 
