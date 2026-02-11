@@ -2,7 +2,8 @@ AddCSLuaFile("shared.lua")
 include("shared.lua")
 
 function ENT:Initialize()
-    self:SetModel("models/Humans/Group01/male_07.mdl")
+    local mdl = DBS.Config and DBS.Config.NPC and DBS.Config.NPC.Models and DBS.Config.NPC.Models.TeamSelector
+    self:SetModel(mdl or "models/Humans/Group03/male_07.mdl")
     self:SetSolid(SOLID_BBOX)
     self:SetUseType(SIMPLE_USE)
     self:SetNPCState(NPC_STATE_SCRIPT)
