@@ -38,7 +38,30 @@ hook.Add("HUDPaint", "DBS_TerritoryCaptureHUD", function()
         break
     end
 
-    if not IsValid(activePole) then return end
+
+    if not IsValid(activePole) then
+
+    local noMoneyUntil = ply:GetNWFloat("DBS_TerritoryNoMoneyUntil", 0)
+    if noMoneyUntil > CurTime() then
+        local nearest = nil
+        for _, ent in ipairs(ents.FindByClass("dbs_territory_pole")) do
+            if IsValid(ent) and ply:GetPos():DistToSqr(ent:GetPos()) <= radiusSqr then
+                nearest = ent
+                break
+            end
+        end
+
+        if IsValid(nearest) and not IsValid(activePole) then
+            local cost = ply:GetNWInt("DBS_TerritoryNoMoneyCost", 0)
+            local w, h = 520, 38
+            local x = (ScrW() - w) * 0.5
+            local y = 40
+            draw.RoundedBox(10, x, y, w, h, Color(14, 14, 18, 228))
+            draw.SimpleText("Cannot claim territory: need $" .. string.Comma(cost), "DBS_TERR_Body", x + w * 0.5, y + h * 0.5, Color(255, 180, 180), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        end
+    end
+        return
+    end
 
     local endTime = activePole:GetCaptureEndsAt()
     if endTime <= 0 then return end

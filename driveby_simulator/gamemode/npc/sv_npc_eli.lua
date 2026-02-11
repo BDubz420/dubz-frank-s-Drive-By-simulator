@@ -4,6 +4,7 @@ DBS.Eli = DBS.Eli or {}
 util.AddNetworkString("DBS_Eli_Open")
 util.AddNetworkString("DBS_Eli_Buy")
 util.AddNetworkString("DBS_Eli_Sell")
+util.AddNetworkString("DBS_Eli_BuyPrinter")
 
 function DBS.Eli.Open(ply)
     local shop = DBS.Util.IsPolice(ply)
@@ -120,4 +121,35 @@ net.Receive("DBS_Eli_Sell", function(_, ply)
     ply:AddMoney(price)
 
     DBS.Util.Notify(ply, "Sold for $" .. price .. ".")
+end)
+
+
+net.Receive("DBS_Eli_BuyPrinter", function(_, ply)
+    if not IsValid(ply) then return end
+
+    local cfg = DBS.Config.Printer or {}
+    local price = cfg.Price or 3000
+
+    local econCooldown = DBS.Config.Economy and DBS.Config.Economy.TransactionCooldown or 0.25
+    if not ply:CanRunEconomyAction(econCooldown) then return end
+
+    if not ply:CanAfford(price) then
+        DBS.Util.Notify(ply, "Cannot afford money printer.")
+        return
+    end
+
+    local tr = ply:GetEyeTrace()
+    local pos = (tr and tr.HitPos or (ply:GetPos() + ply:GetForward() * 70)) + Vector(0,0,16)
+
+    local printer = ents.Create("dbs_money_printer")
+    if not IsValid(printer) then
+        DBS.Util.Notify(ply, "Failed to spawn printer.")
+        return
+    end
+
+    printer:SetPos(pos)
+    printer:Spawn()
+
+    ply:AddMoney(-price)
+    DBS.Util.Notify(ply, "Bought money printer for $" .. string.Comma(price) .. ".")
 end)

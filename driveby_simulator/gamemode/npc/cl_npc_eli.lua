@@ -1,5 +1,7 @@
 -- gamemode/npc/cl_npc_eli.lua
 
+local ELI_FRAME
+
 local function NiceWeaponName(wep)
     if not IsValid(wep) then return "Unknown" end
     local pn = wep.PrintName
@@ -49,17 +51,29 @@ net.Receive("DBS_Eli_Open", function()
 
     local shop = isPolice and DBS.Config.Shop.Police or DBS.Config.Shop.Gang
 
+    if IsValid(ELI_FRAME) then ELI_FRAME:Remove() end
+
     local frame = vgui.Create("DFrame")
     frame:SetSize(600, 520)
     frame:Center()
     frame:SetTitle("")
     frame:MakePopup()
 
-    PaintStyledFrame(frame, "Eli's Market", "Buy hot gear or offload what you can.")
+    PaintStyledFrame(frame, "Eli's Market", "Street gear, fast sales, no questions.")
+
+    ELI_FRAME = frame
 
     local sheet = vgui.Create("DPropertySheet", frame)
     sheet:Dock(FILL)
-    sheet:DockMargin(10, 62, 10, 10)
+    sheet:DockMargin(10, 82, 10, 10)
+
+    local hint = frame:Add("DLabel")
+    hint:Dock(TOP)
+    hint:SetTall(20)
+    hint:DockMargin(14, 60, 14, 0)
+    hint:SetFont("DBS_UI_Body")
+    hint:SetTextColor(Color(180, 180, 180))
+    hint:SetText("Hint: F2 manages properties • F1 toggles camera")
 
     -- BUY TAB
     local buyPanel = vgui.Create("DScrollPanel", sheet)
@@ -179,4 +193,34 @@ net.Receive("DBS_Eli_Open", function()
     end
 
     PopulateSellTab()
+
+    local utilPanel = vgui.Create("DPanel", sheet)
+    utilPanel:DockPadding(10, 10, 10, 10)
+    utilPanel.Paint = nil
+    sheet:AddSheet("Utility", utilPanel, "icon16/wrench.png")
+
+    local pCfg = DBS.Config.Printer or {}
+    local pPrice = pCfg.Price or 3000
+
+    local prInfo = utilPanel:Add("DLabel")
+    prInfo:Dock(TOP)
+    prInfo:SetFont("DBS_UI_Body")
+    prInfo:SetTextColor(Color(220,220,220))
+    prInfo:SetWrap(true)
+    prInfo:SetAutoStretchVertical(true)
+    prInfo:SetText("Money Printer\nPrice: $" .. string.Comma(pPrice) .. "\nLow passive income. Collect by using the printer.")
+
+    local prBtn = utilPanel:Add("DButton")
+    prBtn:Dock(TOP)
+    prBtn:DockMargin(0, 8, 0, 0)
+    prBtn:SetTall(36)
+    prBtn:SetText("")
+    prBtn.DBS_Label = "Buy Money Printer"
+    StyleButton(prBtn, money >= pPrice)
+    prBtn:SetEnabled(money >= pPrice)
+    prBtn.DoClick = function()
+        net.Start("DBS_Eli_BuyPrinter")
+        net.SendToServer()
+    end
+
 end)

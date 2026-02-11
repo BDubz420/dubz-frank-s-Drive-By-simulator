@@ -49,9 +49,16 @@ local function OpenJeromeMenu()
     body:DockMargin(14, 68, 14, 12)
     body.Paint = nil
 
-    MakeTeamButton(body, "Join Bloodz", Color(155, 45, 45), DBS.Const.Teams.RED)
-    MakeTeamButton(body, "Join Cripz", Color(40, 75, 165), DBS.Const.Teams.BLUE)
+    MakeTeamButton(body, "Join Red Gang", Color(155, 45, 45), DBS.Const.Teams.RED)
+    MakeTeamButton(body, "Join Blue Gang", Color(40, 75, 165), DBS.Const.Teams.BLUE)
     MakeTeamButton(body, "Join Police", Color(45, 120, 160), DBS.Const.Teams.POLICE)
+
+    local hint = body:Add("DLabel")
+    hint:Dock(TOP)
+    hint:SetFont("DBS_UI_Body")
+    hint:SetTextColor(Color(180, 180, 180))
+    hint:SetText("Hint: F2 for property, F1 for third-person")
+    hint:SizeToContentsY()
 
     DBS_JEROME_FRAME = frame
 end

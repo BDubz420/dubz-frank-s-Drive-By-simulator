@@ -277,6 +277,8 @@ function ENT:Think()
             NotifyOne(claimant, ("Not enough money to claim ($%s). Leave and return to retry."):format(cost))
             self.NoMoneyBlock = self.NoMoneyBlock or {}
             self.NoMoneyBlock[claimant:SteamID64()] = true
+            claimant:SetNWFloat("DBS_TerritoryNoMoneyUntil", CurTime() + 4)
+            claimant:SetNWInt("DBS_TerritoryNoMoneyCost", cost)
             self:SetCapturingTeam(0)
             self:SetCaptureEndsAt(0)
             self:NextThink(now + 1)
