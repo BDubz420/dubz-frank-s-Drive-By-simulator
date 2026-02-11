@@ -1,22 +1,21 @@
--- Completely override Sandbox loadout
 function GM:PlayerLoadout(ply)
-    -- Returning true stops Sandbox from giving default weapons
     return true
 end
 
--- Physgun control
 hook.Add("PhysgunPickup", "DBS.PhysgunControl", function(ply)
-    return ply:IsSuperAdmin()
+    if not IsValid(ply) then return false end
+    return ply:IsSuperAdmin() or (ply:IsAdmin() and ply:GetNWBool("DBS_SandboxMode", false))
 end)
 
--- Toolgun control
 hook.Add("CanTool", "DBS.ToolgunControl", function(ply)
-    return ply:IsSuperAdmin()
+    if not IsValid(ply) then return false end
+    return ply:IsSuperAdmin() or (ply:IsAdmin() and ply:GetNWBool("DBS_SandboxMode", false))
 end)
 
--- Camera control (sandbox camera)
 hook.Add("PlayerGiveSWEP", "DBS.BlockCameraSWEP", function(ply, class)
-    if class == "gmod_camera" and not ply:IsSuperAdmin() then
-        return false
-    end
+    if class ~= "gmod_camera" then return end
+    if not IsValid(ply) then return false end
+
+    if ply:IsSuperAdmin() then return true end
+    return ply:IsAdmin() and ply:GetNWBool("DBS_SandboxMode", false)
 end)

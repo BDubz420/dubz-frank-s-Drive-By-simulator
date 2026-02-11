@@ -15,3 +15,17 @@ end
 function PLAYER:CanAfford(amount)
     return self:GetMoney() >= amount
 end
+
+function PLAYER:CanRunEconomyAction(cooldown)
+    cooldown = cooldown or 0
+
+    local now = CurTime()
+    local nextAllowed = self:GetNWFloat("DBS_EconCooldown", 0)
+
+    if nextAllowed > now then
+        return false
+    end
+
+    self:SetNWFloat("DBS_EconCooldown", now + cooldown)
+    return true
+end

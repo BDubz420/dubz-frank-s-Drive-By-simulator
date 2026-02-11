@@ -13,7 +13,8 @@ DBS.Inventory.IgnoreWeapons = {
 DBS.Inventory.NonGunWeapons = {
     ["weapon_dbs_hands"] = true,
     ["weapon_fists"] = true,
-    ["weapon_dbs_lockpick"] = true
+    ["weapon_dbs_lockpick"] = true,
+    ["weapon_dbs_pickpocket"] = true
 }
 
 -- ----------------------------
